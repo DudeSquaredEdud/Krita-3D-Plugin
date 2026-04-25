@@ -1,11 +1,13 @@
 import uuid
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from .skeleton import Skeleton
 from .transform import Transform
 from .vec3 import Vec3
+from .quat import Quat
+from .mat4 import Mat4
 from .bone import Bone
 from .gltf.builder import MeshData
-from .gltf.loader import GLBLoader
+from .gltf.loader import GLBLoader, GLBData
 from .gltf.builder import build_skeleton_from_gltf, build_mesh_from_gltf
 
 
@@ -32,7 +34,7 @@ class ModelInstance:
         self._gl_initialized: bool = False
     
     
-    def load_from_glb(self, file_path: str) -> None:
+    def load_from_file(self, file_path: str) -> None:
         loader = GLBLoader()
         glb_data = loader.load(file_path)
 
@@ -41,9 +43,68 @@ class ModelInstance:
         self.mesh_data = build_mesh_from_gltf(glb_data, bone_mapping=bone_mapping, loader=loader, load_all_meshes=True)
         self._source_file = file_path
 
+        self._apply_gltf_node_transform(glb_data)
 
         if self.skeleton:
             self.skeleton.update_all_transforms()
+
+    def _apply_gltf_node_transform(self, glb_data: GLBData) -> None:
+        if not glb_data.nodes:
+            print(f"[DEBUG_TRANSFORM] No nodes in glb_data, skipping")
+            return
+
+        if glb_data.skins:
+            print(f"[DEBUG_TRANSFORM] Model has {len(glb_data.skins)} skins, skipping node transform")
+            return
+
+        scenes = glb_data.json_data.get('scenes', [])
+        scene_index = glb_data.json_data.get('scene', 0)
+        root_indices: List[int] = []
+
+        if scenes and scene_index < len(scenes):
+            root_indices = scenes[scene_index].get('nodes', [])
+
+        if not root_indices:
+            root_indices = list(range(len(glb_data.nodes)))
+
+        print(f"[DEBUG_TRANSFORM] scenes={len(scenes)} scene_index={scene_index} root_indices={root_indices}")
+
+        mesh_nodes: List[Tuple[int, Mat4]] = []
+        for idx in root_indices:
+            self._collect_mesh_nodes(glb_data, idx, Mat4.identity(), mesh_nodes)
+
+        print(f"[DEBUG_TRANSFORM] Found {len(mesh_nodes)} mesh nodes")
+        if not mesh_nodes:
+            return
+
+        _, node_transform = mesh_nodes[0]
+        self.transform.position = node_transform.get_translation()
+        self.transform.rotation = node_transform.get_rotation()
+        self.transform.scale = node_transform.get_scale()
+        print(f"[DEBUG_TRANSFORM] Applied: pos={self.transform.position} rot={self.transform.rotation} scale={self.transform.scale}")
+
+    def _collect_mesh_nodes(self, glb_data: GLBData, node_index: int,
+                            parent_transform: Mat4, result: List[Tuple[int, Mat4]]) -> None:
+        node = glb_data.nodes[node_index]
+
+        if node.matrix:
+            local = Mat4(node.matrix)
+        else:
+            t = Vec3(node.translation[0], node.translation[1], node.translation[2])
+            r = Quat(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2])
+            s = Vec3(node.scale[0], node.scale[1], node.scale[2])
+            local = Mat4.from_trs(t, r, s)
+
+        world = parent_transform * local
+
+        if node.mesh is not None:
+            result.append((node_index, world))
+
+        for child_index in node.children:
+            self._collect_mesh_nodes(glb_data, child_index, world, result)
+
+    def load_from_glb(self, file_path: str) -> None:
+            self.load_from_file(file_path)
     
     @property
     def source_file(self) -> Optional[str]:

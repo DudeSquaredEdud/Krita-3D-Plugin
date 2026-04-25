@@ -726,7 +726,7 @@ class TestPluginSettings:
         settings.reset_all_to_defaults()
         
         assert abs(settings.camera.get('default_fov') - 120.0) > 0.01
-        assert (settings.gizmo.get('base_scale') - 5.0) > 0.01
+        assert abs(settings.gizmo.get('base_scale') - 5.0) > 0.01
 
     def test_plugin_settings_export_import(self, tmp_path):
         

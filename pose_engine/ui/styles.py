@@ -33,10 +33,14 @@ class Colors:
     GIZMO_DRAG = '#F39C12'   
     
     # Bone state colors
-    BONE_DEFAULT = '#95A5A6' 
+    BONE_DEFAULT = '#95A5A6'
     BONE_SELECTED = '#5DADE2'
-    BONE_HOVER = '#F39C12'   
+    BONE_HOVER = '#F39C12'
     BONE_MODIFIED = '#F1C40F'
-    BONE_LOCKED = '#7F8C8D'  
-    BONE_ROOT = '#9B59B6'    
-    BONE_LEAF = '#1ABC9C'    
+    BONE_LOCKED = '#7F8C8D'
+    BONE_ROOT = '#9B59B6'
+    BONE_LEAF = '#1ABC9C'
+
+    # Silhouette mode colors
+    SILHOUETTE_GREY = '#595959'
+    SILHOUETTE_OUTLINE = '#141414'

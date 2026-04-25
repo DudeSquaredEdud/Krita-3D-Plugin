@@ -1,9 +1,9 @@
 {
     "id": "pykrita_3d_poser",
-    "name": "3D Model Poser",
-    "version": "2.0.0",
-    "description": "A plugin for Krita that enables 3D character posing with skeletal animation support, inverse kinematics, transform gizmos, and multi-model scene management.",
-    "author": "Krita 3D Poser Plugin",
+    "name": "K3D - Krita Model Poser",
+    "version": "Beta 1.1.0",
+    "description": "A plugin for Krita that enables 3D character posing.",
+    "author": "DudeSquaredEdud, Ashton Andrepont",
     "email": "",
     "license": "MIT",
     "website": "",

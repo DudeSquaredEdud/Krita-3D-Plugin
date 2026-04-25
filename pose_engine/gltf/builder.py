@@ -183,8 +183,6 @@ def build_mesh_from_gltf(
 
             sub_mesh.material_index = primitive.get('material', None)
 
-            print(f"[BUILDER] Mesh {current_mesh_index}, Primitive {prim_idx}: material_index={sub_mesh.material_index}, attributes={list(attributes.keys())}")
-
             if 'POSITION' in attributes:
                 positions = loader.get_positions(attributes['POSITION'])
                 sub_mesh.positions = [Vec3(p[0], p[1], p[2]) for p in positions]

@@ -84,7 +84,7 @@ def test_bone_transforms():
     root.set_pose_rotation(Quat.from_axis_angle_degrees(Vec3(0, 0, 1), 90))
 
     child_pos_rotated = child.get_world_position()
-    print(f"Child position after root 90° Z rotation: {child_pos_rotated}")
+    print(f"Child position after root 90deg Z rotation: {child_pos_rotated}")
     
     
     assert abs(child_pos_rotated.x - (-2)) < 0.01

@@ -2,6 +2,7 @@
 
 import math
 from typing import Tuple
+
 from .vec3 import Vec3
 
 
@@ -210,7 +211,8 @@ class Quat:
         ).normalized()
     
     @classmethod
-    def from_matrix(cls, mat: 'Mat4') -> 'Quat':
+    def from_matrix(cls, mat) -> 'Quat':
+        from .mat4 import Mat4
         m = mat.m
         
         trace = m[0] + m[5] + m[10]

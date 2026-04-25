@@ -156,12 +156,20 @@ class MouseSettings:
         return binding.matches(button, modifiers)
     
     def get_scroll_zoom_speed(self) -> float:
-        
+
         return self._settings.get('scroll_zoom_speed', 0.1)
-    
+
+    def set_scroll_zoom_speed(self, value: float) -> None:
+
+        self._settings['scroll_zoom_speed'] = value
+
     def get_scroll_dolly_speed(self) -> float:
-        
+
         return self._settings.get('scroll_dolly_speed', 0.2)
+
+    def set_scroll_dolly_speed(self, value: float) -> None:
+
+        self._settings['scroll_dolly_speed'] = value
     
     def reset_to_defaults(self) -> None:
         
@@ -285,16 +293,22 @@ class CameraSettings:
 
 
 class UISettings:
- 
-    def __init__(self):
+
+    def __init__(self, notifier: Optional[SettingsChangeNotifier] = None):
         self._settings: Dict[str, Any] = dict(DEFAULT_UI_SETTINGS)
-    
+        self._notifier = notifier
+
+    def _set_notifier(self, notifier: SettingsChangeNotifier) -> None:
+        self._notifier = notifier
+
     def get(self, key: str, default: Any = None) -> Any:
         return self._settings.get(key, default)
-    
+
     def set(self, key: str, value: Any) -> None:
         self._settings[key] = value
-    
+        if self._notifier:
+            self._notifier.setting_changed.emit('ui', key, value)
+
     def get_default_visibility(self) -> Dict[str, bool]:
         return {
             'mesh': self._settings.get('show_mesh_default', True),
@@ -302,20 +316,38 @@ class UISettings:
             'joints': self._settings.get('show_joints_default', True),
             'gizmo': self._settings.get('show_gizmo_default', True),
         }
-    
+
     def get_theme_colors(self) -> Dict[str, str]:
         theme_name = self._settings.get('theme', 'dark')
         return UI_THEMES.get(theme_name, UI_THEMES['dark'])
-    
+
     def get_themes(self) -> Dict[str, Dict[str, str]]:
         return dict(UI_THEMES)
-    
+
+    def get_silhouette_mode(self) -> bool:
+        return self._settings.get('silhouette_mode', False)
+
+    def set_silhouette_mode(self, enabled: bool) -> None:
+        self.set('silhouette_mode', enabled)
+
+    def get_silhouette_color(self) -> str:
+        return self._settings.get('silhouette_color', '#595959')
+
+    def set_silhouette_color(self, color: str) -> None:
+        self.set('silhouette_color', color)
+
+    def get_outline_width(self) -> float:
+        return self._settings.get('outline_width', 0.005)
+
+    def set_outline_width(self, width: float) -> None:
+        self.set('outline_width', width)
+
     def reset_to_defaults(self) -> None:
         self._settings = dict(DEFAULT_UI_SETTINGS)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return dict(self._settings)
-    
+
     def load_from_dict(self, data: Dict[str, Any]) -> None:
         self._settings = dict(DEFAULT_UI_SETTINGS)
         self._settings.update(data)
@@ -331,7 +363,7 @@ class PluginSettings:
         self.mouse = MouseSettings()
         self.gizmo = GizmoSettings(self._notifier)
         self.camera = CameraSettings(self._notifier)
-        self.ui = UISettings()
+        self.ui = UISettings(self._notifier)
 
         self._modified = False
 

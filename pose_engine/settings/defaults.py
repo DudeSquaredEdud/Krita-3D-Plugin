@@ -8,14 +8,14 @@ DEFAULT_KEYBOARD_SHORTCUTS = {
     'reset_camera': (Qt.Key_R, Qt.NoModifier),
 
     'toggle_mesh': (Qt.Key_T, Qt.NoModifier),
-    'toggle_skeleton': (Qt.Key_S, Qt.NoModifier),
+    'toggle_skeleton': (Qt.Key_K, Qt.NoModifier),
     'toggle_joints': (Qt.Key_J, Qt.NoModifier),
     'toggle_gizmo': (Qt.Key_H, Qt.NoModifier),
 
     'toggle_gizmo_mode': (Qt.Key_G, Qt.NoModifier),
-    'gizmo_rotate': (Qt.Key_1, Qt.NoModifier),
-    'gizmo_move': (Qt.Key_2, Qt.NoModifier),
-    'gizmo_scale': (Qt.Key_3, Qt.NoModifier),
+    'gizmo_rotate': (Qt.Key_V, Qt.NoModifier),
+    'gizmo_move': (Qt.Key_B, Qt.NoModifier),
+    'gizmo_scale': (Qt.Key_N, Qt.NoModifier),
 
     'undo': (Qt.Key_Z, Qt.ControlModifier),
     'redo': (Qt.Key_Z, Qt.ControlModifier | Qt.ShiftModifier),
@@ -34,7 +34,7 @@ DEFAULT_KEYBOARD_SHORTCUTS = {
     'reset_bone': (Qt.Key_R, Qt.ControlModifier),
     'delete_keyframe': (Qt.Key_Delete, Qt.NoModifier),
 
-    # Camera movement
+    # Camera movement (WASD+QE - only active with no modifiers)
     'camera_forward': (Qt.Key_W, Qt.NoModifier),
     'camera_backward': (Qt.Key_S, Qt.NoModifier),
     'camera_left': (Qt.Key_A, Qt.NoModifier),
@@ -45,23 +45,23 @@ DEFAULT_KEYBOARD_SHORTCUTS = {
     'toggle_head_look': (Qt.Key_Tab, Qt.NoModifier),
 
     'bookmark_recall_1': (Qt.Key_1, Qt.NoModifier),
-'bookmark_recall_2': (Qt.Key_2, Qt.NoModifier),
-'bookmark_recall_3': (Qt.Key_3, Qt.NoModifier),
-'bookmark_recall_4': (Qt.Key_4, Qt.NoModifier),
-'bookmark_recall_5': (Qt.Key_5, Qt.NoModifier),
-'bookmark_recall_6': (Qt.Key_6, Qt.NoModifier),
-'bookmark_recall_7': (Qt.Key_7, Qt.NoModifier),
-'bookmark_recall_8': (Qt.Key_8, Qt.NoModifier),
-'bookmark_recall_9': (Qt.Key_9, Qt.NoModifier),
-'bookmark_save_1': (Qt.Key_1, Qt.ControlModifier),
-'bookmark_save_2': (Qt.Key_2, Qt.ControlModifier),
-'bookmark_save_3': (Qt.Key_3, Qt.ControlModifier),
-'bookmark_save_4': (Qt.Key_4, Qt.ControlModifier),
-'bookmark_save_5': (Qt.Key_5, Qt.ControlModifier),
-'bookmark_save_6': (Qt.Key_6, Qt.ControlModifier),
-'bookmark_save_7': (Qt.Key_7, Qt.ControlModifier),
-'bookmark_save_8': (Qt.Key_8, Qt.ControlModifier),
-'bookmark_save_9': (Qt.Key_9, Qt.ControlModifier),
+    'bookmark_recall_2': (Qt.Key_2, Qt.NoModifier),
+    'bookmark_recall_3': (Qt.Key_3, Qt.NoModifier),
+    'bookmark_recall_4': (Qt.Key_4, Qt.NoModifier),
+    'bookmark_recall_5': (Qt.Key_5, Qt.NoModifier),
+    'bookmark_recall_6': (Qt.Key_6, Qt.NoModifier),
+    'bookmark_recall_7': (Qt.Key_7, Qt.NoModifier),
+    'bookmark_recall_8': (Qt.Key_8, Qt.NoModifier),
+    'bookmark_recall_9': (Qt.Key_9, Qt.NoModifier),
+    'bookmark_save_1': (Qt.Key_1, Qt.ControlModifier),
+    'bookmark_save_2': (Qt.Key_2, Qt.ControlModifier),
+    'bookmark_save_3': (Qt.Key_3, Qt.ControlModifier),
+    'bookmark_save_4': (Qt.Key_4, Qt.ControlModifier),
+    'bookmark_save_5': (Qt.Key_5, Qt.ControlModifier),
+    'bookmark_save_6': (Qt.Key_6, Qt.ControlModifier),
+    'bookmark_save_7': (Qt.Key_7, Qt.ControlModifier),
+    'bookmark_save_8': (Qt.Key_8, Qt.ControlModifier),
+    'bookmark_save_9': (Qt.Key_9, Qt.ControlModifier),
 }
 
 KEYBOARD_ACTION_NAMES = {
@@ -238,16 +238,20 @@ DEFAULT_UI_SETTINGS = {
     'show_skeleton_default': True,
     'show_joints_default': True,
     'show_gizmo_default': True,
-    
+
     'joint_scale': 0.15,
     'joint_color_selected': '#FFCC00',
     'joint_color_hover': '#FFFFFF',
     'joint_color_normal': '#3498DB',
-    
+
     'bone_width': 2.0,
     'bone_color': '#ECF0F1',
     'bone_color_selected': '#FFCC00',
-    
+
+    'silhouette_mode': False,
+    'silhouette_color': '#595959',
+    'outline_width': 0.005,
+
     'theme': 'dark',
     'accent_color': '#3498DB',
 }
@@ -289,36 +293,29 @@ DEFAULT_SCENE_SETTINGS = {
     'auto_load_scene': True, # Automatically load scene when opening Krita project
     'prompt_on_conflict': True, # Ask user when scene file conflicts exist
 }
-# why the fuck are there icons
 SETTINGS_CATEGORIES = {
     'keyboard': {
         'name': 'Keyboard Shortcuts',
-        'icon': '⌨️',
         'description': 'Customize keyboard shortcuts for all actions',
     },
     'mouse': {
         'name': 'Mouse Controls',
-        'icon': '🖱️',
         'description': 'Configure mouse button bindings and sensitivity',
     },
     'gizmo': {
         'name': 'Gizmo Settings',
-        'icon': '🎯',
         'description': 'Adjust gizmo appearance and behavior',
     },
     'camera': {
         'name': 'Camera Settings',
-        'icon': '📷',
         'description': 'Configure camera behavior and limits',
     },
     'ui': {
         'name': 'UI Preferences',
-        'icon': '🎨',
         'description': 'Customize visual appearance and defaults',
     },
     'scene': {
         'name': 'Scene Settings',
-        'icon': '📁',
         'description': 'Configure auto-save and project integration',
     },
 }

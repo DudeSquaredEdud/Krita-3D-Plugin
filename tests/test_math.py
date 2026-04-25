@@ -35,13 +35,13 @@ def test_vec3():
     dot = v1.dot(v2)
     expected_dot = 1*4 + 2*5 + 3*6
     assert abs(dot - expected_dot) < 0.001, "Dot product failed"
-    print(f"  Dot product: {v1} · {v2} = {dot}")
+    print(f"  Dot product: {v1} dot {v2} = {dot}")
     
     vx = Vec3(1, 0, 0)
     vy = Vec3(0, 1, 0)
     vz = vx.cross(vy)
     assert abs(vz.x) < 0.001 and abs(vz.y) < 0.001 and abs(vz.z - 1) < 0.001, "Cross product failed"
-    print(f"  Cross product: {vx} × {vy} = {vz}")
+    print(f"  Cross product: {vx} * {vy} = {vz}")
     
     v_len = Vec3(3, 4, 0)
     assert abs(v_len.length() - 5) < 0.001, "Length calculation failed"
@@ -86,14 +86,14 @@ def test_quat():
     print(f"  Identity: {q_id}")
     
     q_rot = Quat.from_axis_angle(Vec3.UP, math.pi / 2)
-    print(f"  Axis-angle (90° around Y): {q_rot}")
+    print(f"  Axis-angle (90deg around Y): {q_rot}")
     
     q1 = Quat.from_axis_angle(Vec3.UP, math.pi / 4)
     q2 = Quat.from_axis_angle(Vec3.UP, math.pi / 4)
     q3 = q1 * q2
     euler = q3.to_euler_degrees()
     assert abs(euler[1] - 90) < 1, f"Quaternion multiplication failed: got {euler}"
-    print(f"  Multiply: 45° * 45° = {euler[1]:.1f}° (Y axis)")
+    print(f"  Multiply: 45deg * 45deg = {euler[1]:.1f}deg (Y axis)")
     
     
     q_90y = Quat.from_axis_angle_degrees(Vec3.UP, 90)
@@ -101,14 +101,14 @@ def test_quat():
     v_rotated = q_90y.rotate_vector(v_x)
     assert abs(v_rotated.x) < 0.001, f"X should be ~0, got {v_rotated.x}"
     assert abs(v_rotated.z + 1) < 0.001, f"Z should be ~-1, got {v_rotated.z}"
-    print(f"  Rotate vector: {v_x} rotated 90° Y = {v_rotated}")
+    print(f"  Rotate vector: {v_x} rotated 90deg Y = {v_rotated}")
     
     q_euler = Quat.from_euler_degrees(45, 30, 60)
     euler = q_euler.to_euler_degrees()
     assert abs(euler[0] - 45) < 1, "Euler X conversion failed"
     assert abs(euler[1] - 30) < 1, "Euler Y conversion failed"
     assert abs(euler[2] - 60) < 1, "Euler Z conversion failed"
-    print(f"  Euler conversion: (45°, 30°, 60°) -> ({euler[0]:.1f}°, {euler[1]:.1f}°, {euler[2]:.1f}°)")
+    print(f"  Euler conversion: (45deg, 30deg, 60deg) -> ({euler[0]:.1f}deg, {euler[1]:.1f}deg, {euler[2]:.1f}deg)")
     
     v_up = Vec3.UP
     v_right = Vec3.RIGHT
@@ -122,7 +122,7 @@ def test_quat():
     q_mid = Quat.slerp(q_start, q_end, 0.5)
     euler_mid = q_mid.to_euler_degrees()
     assert abs(euler_mid[1] - 45) < 1, f"SLERP failed: {euler_mid}"
-    print(f"  SLERP: 0° -> 90° at t=0.5 = {euler_mid[1]:.1f}°")
+    print(f"  SLERP: 0deg -> 90deg at t=0.5 = {euler_mid[1]:.1f}deg")
     
     print("  All Quat tests passed!")
 
@@ -149,7 +149,7 @@ def test_mat4():
     v_rotated = m_rot.transform_vector(v_x)
     assert abs(v_rotated.x) < 0.001, f"Rotation X should be ~0, got {v_rotated.x}"
     assert abs(v_rotated.z + 1) < 0.001, f"Rotation Z should be ~-1, got {v_rotated.z}"
-    print(f"  Rotation: (1,0,0) rotated 90° Y = {v_rotated}")
+    print(f"  Rotation: (1,0,0) rotated 90deg Y = {v_rotated}")
     
     m_t = Mat4.translation(Vec3(1, 0, 0))
     m_s = Mat4.scale(Vec3(2, 2, 2))
@@ -165,7 +165,7 @@ def test_mat4():
     m_back = m_orig * m_inv
     assert abs(m_back.m[0] - 1) < 0.001, "Inverse failed"
     assert abs(m_back.m[12]) < 0.001, "Inverse translation failed"
-    print(f"  Inverse: M * M^-1 ≈ Identity")
+    print(f"  Inverse: M * M^-1 = Identity")
     
     t = Vec3(1, 2, 3)
     r = Quat.from_euler_degrees(30, 45, 60)
@@ -193,7 +193,7 @@ def test_transform():
     t.set_rotation_euler_degrees(45, 0, 0)
     euler = t.get_euler_degrees()
     assert abs(euler[0] - 45) < 1, "Set rotation failed"
-    print(f"  Set rotation: ({euler[0]:.1f}°, {euler[1]:.1f}°, {euler[2]:.1f}°)")
+    print(f"  Set rotation: ({euler[0]:.1f}deg, {euler[1]:.1f}deg, {euler[2]:.1f}deg)")
     
     m = t.get_matrix()
     assert m.m[12] == 1 and m.m[13] == 2 and m.m[14] == 3, "Transform matrix failed"
@@ -203,7 +203,7 @@ def test_transform():
     t2.rotate_by(Vec3.UP, 90)
     euler2 = t2.get_euler_degrees()
     assert abs(euler2[1] - 90) < 1, "Rotate by failed"
-    print(f"  Rotate by 90° Y: ({euler2[0]:.1f}°, {euler2[1]:.1f}°, {euler2[2]:.1f}°)")
+    print(f"  Rotate by 90deg Y: ({euler2[0]:.1f}deg, {euler2[1]:.1f}deg, {euler2[2]:.1f}deg)")
     
     t3 = t.copy()
     assert t3.position.x == t.position.x, "Copy failed"

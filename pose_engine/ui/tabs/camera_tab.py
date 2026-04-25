@@ -4,7 +4,7 @@ from typing import Optional, TYPE_CHECKING
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
-    QPushButton, QLabel, QCheckBox,
+    QPushButton, QLabel, QCheckBox, QComboBox, QDoubleSpinBox,
     QFileDialog, QMessageBox
 )
 from PyQt5.QtCore import Qt, pyqtSignal
@@ -70,7 +70,7 @@ class CameraTab(QWidget):
             range_min=30, range_max=120,
             default=45,
             scale=1.0,
-            format_fn=lambda v: f"{v:.0f}°",
+            format_fn=lambda v: f"{v:.0f}deg",
         )
         self._fov_slider.value_changed.connect(self._on_fov_changed)
         fov_layout.addWidget(self._fov_slider)
@@ -114,10 +114,10 @@ class CameraTab(QWidget):
 
         layout.addWidget(actions_group)
 
-        #  Visual Effects 
+        # Visual Effects
         effects_group = QGroupBox("Visual Effects")
         effects_layout = QVBoxLayout(effects_group)
-
+    
         self._distance_gradient_btn = QPushButton("Distance Gradient")
         self._distance_gradient_btn.setCheckable(True)
         self._distance_gradient_btn.setChecked(False)
@@ -130,7 +130,7 @@ class CameraTab(QWidget):
             lambda: self._on_distance_gradient_toggle(self._distance_gradient_btn.isChecked())
         )
         effects_layout.addWidget(self._distance_gradient_btn)
-
+    
         distance_range = self._settings.gizmo.get('distance_gradient_range', 5.0) if self._settings else 5.0
         self._distance_range_slider = LabeledSlider(
             label="Distance:",
@@ -145,7 +145,44 @@ class CameraTab(QWidget):
         )
         self._distance_range_slider.value_changed.connect(self._on_distance_range_changed)
         effects_layout.addWidget(self._distance_range_slider)
-
+    
+        # Silhouette Mode
+        self._silhouette_btn = QPushButton("Silhouette Mode")
+        self._silhouette_btn.setCheckable(True)
+        self._silhouette_btn.setChecked(False)
+        self._silhouette_btn.setToolTip(
+            "Render models as flat grey with dark contour outlines"
+        )
+        self._silhouette_btn.clicked.connect(
+            lambda: self._on_silhouette_toggle(self._silhouette_btn.isChecked())
+        )
+        effects_layout.addWidget(self._silhouette_btn)
+    
+        silhouette_color_layout = QHBoxLayout()
+        silhouette_color_layout.addWidget(QLabel("Grey:"))
+        self._silhouette_color_combo = QComboBox()
+        self._silhouette_color_combo.addItem("Light", '#A0A0A0')
+        self._silhouette_color_combo.addItem("Medium", '#595959')
+        self._silhouette_color_combo.addItem("Dark", '#333333')
+        self._silhouette_color_combo.addItem("Warm", '#6B6159')
+        self._silhouette_color_combo.addItem("Cool", '#59636B')
+        self._silhouette_color_combo.setCurrentIndex(1)
+        self._silhouette_color_combo.currentIndexChanged.connect(self._on_silhouette_color_changed)
+        silhouette_color_layout.addWidget(self._silhouette_color_combo)
+        effects_layout.addLayout(silhouette_color_layout)
+    
+        outline_width_layout = QHBoxLayout()
+        outline_width_layout.addWidget(QLabel("Outline:"))
+        self._outline_width_spin = QDoubleSpinBox()
+        self._outline_width_spin.setRange(0.001, 0.05)
+        self._outline_width_spin.setSingleStep(0.001)
+        self._outline_width_spin.setDecimals(3)
+        self._outline_width_spin.setValue(0.005)
+        self._outline_width_spin.setToolTip("Thickness of the contour outline")
+        self._outline_width_spin.valueChanged.connect(self._on_outline_width_changed)
+        outline_width_layout.addWidget(self._outline_width_spin)
+        effects_layout.addLayout(outline_width_layout)
+    
         layout.addWidget(effects_group)
 
         #  Display Scale 
@@ -231,6 +268,27 @@ class CameraTab(QWidget):
         joint_display_scale = self._settings.gizmo.get('joint_display_scale', 0.15)
         self._joint_scale_slider.set_value(joint_display_scale, block_signals=True)
 
+        silhouette_mode = self._settings.ui.get('silhouette_mode', False)
+        self._silhouette_btn.setChecked(silhouette_mode)
+        if self._viewport:
+            self._viewport.set_silhouette_mode(silhouette_mode)
+
+        silhouette_color = self._settings.ui.get('silhouette_color', '#595959')
+        for i in range(self._silhouette_color_combo.count()):
+            if self._silhouette_color_combo.itemData(i) == silhouette_color:
+                self._silhouette_color_combo.setCurrentIndex(i)
+                break
+        if silhouette_color and self._viewport:
+            r = int(silhouette_color[1:3], 16) / 255.0
+            g = int(silhouette_color[3:5], 16) / 255.0
+            b = int(silhouette_color[5:7], 16) / 255.0
+            self._viewport.set_silhouette_color((r, g, b))
+
+        outline_width = self._settings.ui.get('outline_width', 0.005)
+        self._outline_width_spin.setValue(outline_width)
+        if self._viewport:
+            self._viewport.set_outline_width(outline_width)
+
     #  Camera mode 
 
     def _set_camera_mode(self, mode: str) -> None:
@@ -268,7 +326,7 @@ class CameraTab(QWidget):
         if self._viewport:
             self._viewport.set_preset_view(view)
 
-    #  Visual effects 
+    # Visual effects
 
     def _on_distance_gradient_toggle(self, checked: bool) -> None:
         if self._viewport:
@@ -278,7 +336,29 @@ class CameraTab(QWidget):
         if self._viewport:
             self._viewport.set_distance_range(0.0, value)
 
-    #  Display scale 
+    def _on_silhouette_toggle(self, checked: bool) -> None:
+        if self._viewport:
+            self._viewport.set_silhouette_mode(checked)
+        if self._settings:
+            self._settings.ui.set('silhouette_mode', checked)
+
+    def _on_silhouette_color_changed(self) -> None:
+        color_hex = self._silhouette_color_combo.currentData()
+        if color_hex and self._viewport:
+            r = int(color_hex[1:3], 16) / 255.0
+            g = int(color_hex[3:5], 16) / 255.0
+            b = int(color_hex[5:7], 16) / 255.0
+            self._viewport.set_silhouette_color((r, g, b))
+        if self._settings and color_hex:
+            self._settings.ui.set('silhouette_color', color_hex)
+
+    def _on_outline_width_changed(self, value: float) -> None:
+        if self._viewport:
+            self._viewport.set_outline_width(value)
+        if self._settings:
+            self._settings.ui.set('outline_width', value)
+
+    # Display scale
 
     def _on_gizmo_scale_changed(self, value: float) -> None:
         if self._settings:

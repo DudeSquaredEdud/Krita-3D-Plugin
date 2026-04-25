@@ -645,5 +645,200 @@ class TestWorldTransformHierarchy:
         assert abs(world_pos.z - 2.0) < 0.001
 
 
+class TestApplyGLTFNodeTransform:
+
+    def test_apply_node_transform_unskinned(self):
+        from pose_engine.gltf.loader import GLBData, NodeData
+
+        nodes = [
+            NodeData(
+                name="root_node",
+                children=[],
+                mesh=0,
+                skin=None,
+                translation=[1.0, 2.0, 3.0],
+                rotation=[0.0, 0.0, 0.0, 1.0],
+                scale=[0.5, 0.5, 0.5],
+                matrix=None
+            )
+        ]
+        glb_data = GLBData(
+            json_data={'scenes': [{'nodes': [0]}], 'scene': 0},
+            binary_buffer=b'',
+            buffers=[b''],
+            accessors=[],
+            buffer_views=[],
+            nodes=nodes,
+            skins=[],
+            meshes=[],
+            materials=[],
+            textures=[],
+            images=[]
+        )
+
+        model = ModelInstance(name="test_transform")
+        model._apply_gltf_node_transform(glb_data)
+
+        assert abs(model.transform.position.x - 1.0) < 1e-6
+        assert abs(model.transform.position.y - 2.0) < 1e-6
+        assert abs(model.transform.position.z - 3.0) < 1e-6
+        assert abs(model.transform.scale.x - 0.5) < 1e-6
+        assert abs(model.transform.scale.y - 0.5) < 1e-6
+        assert abs(model.transform.scale.z - 0.5) < 1e-6
+
+    def test_apply_node_transform_skinned_model_skipped(self):
+        from pose_engine.gltf.loader import GLBData, NodeData, SkinData
+
+        nodes = [
+            NodeData(
+                name="armature",
+                children=[1],
+                mesh=None,
+                skin=None,
+                translation=[5.0, 5.0, 5.0],
+                rotation=[0.0, 0.0, 0.0, 1.0],
+                scale=[2.0, 2.0, 2.0],
+                matrix=None
+            ),
+            NodeData(
+                name="mesh_node",
+                children=[],
+                mesh=0,
+                skin=0,
+                translation=[0.0, 0.0, 0.0],
+                rotation=[0.0, 0.0, 0.0, 1.0],
+                scale=[1.0, 1.0, 1.0],
+                matrix=None
+            )
+        ]
+        glb_data = GLBData(
+            json_data={'scenes': [{'nodes': [0]}], 'scene': 0},
+            binary_buffer=b'',
+            buffers=[b''],
+            accessors=[],
+            buffer_views=[],
+            nodes=nodes,
+            skins=[SkinData(name="skin0", joints=[0], skeleton=0, inverse_bind_matrices=None)],
+            meshes=[],
+            materials=[],
+            textures=[],
+            images=[]
+        )
+
+        model = ModelInstance(name="skinned_model")
+        model._apply_gltf_node_transform(glb_data)
+
+        assert abs(model.transform.position.x) < 1e-6
+        assert abs(model.transform.scale.x - 1.0) < 1e-6
+
+    def test_apply_node_transform_no_nodes(self):
+        from pose_engine.gltf.loader import GLBData
+
+        glb_data = GLBData(
+            json_data={},
+            binary_buffer=b'',
+            buffers=[b''],
+            accessors=[],
+            buffer_views=[],
+            nodes=[],
+            skins=[],
+            meshes=[],
+            materials=[],
+            textures=[],
+            images=[]
+        )
+
+        model = ModelInstance(name="empty_model")
+        model._apply_gltf_node_transform(glb_data)
+
+        assert abs(model.transform.position.x) < 1e-6
+        assert abs(model.transform.scale.x - 1.0) < 1e-6
+
+    def test_apply_node_transform_matrix(self):
+        from pose_engine.gltf.loader import GLBData, NodeData
+        from pose_engine.mat4 import Mat4
+
+        mat = Mat4.from_trs(Vec3(3.0, 4.0, 5.0), Quat.identity(), Vec3(0.25, 0.25, 0.25))
+        nodes = [
+            NodeData(
+                name="matrix_node",
+                children=[],
+                mesh=0,
+                skin=None,
+                translation=[0, 0, 0],
+                rotation=[0, 0, 0, 1],
+                scale=[1, 1, 1],
+                matrix=mat.m
+            )
+        ]
+        glb_data = GLBData(
+            json_data={'scenes': [{'nodes': [0]}], 'scene': 0},
+            binary_buffer=b'',
+            buffers=[b''],
+            accessors=[],
+            buffer_views=[],
+            nodes=nodes,
+            skins=[],
+            meshes=[],
+            materials=[],
+            textures=[],
+            images=[]
+        )
+
+        model = ModelInstance(name="matrix_model")
+        model._apply_gltf_node_transform(glb_data)
+
+        assert abs(model.transform.position.x - 3.0) < 1e-5
+        assert abs(model.transform.position.y - 4.0) < 1e-5
+        assert abs(model.transform.position.z - 5.0) < 1e-5
+        assert abs(model.transform.scale.x - 0.25) < 1e-5
+
+    def test_apply_node_transform_nested_hierarchy(self):
+        from pose_engine.gltf.loader import GLBData, NodeData
+
+        nodes = [
+            NodeData(
+                name="parent",
+                children=[1],
+                mesh=None,
+                skin=None,
+                translation=[10.0, 0.0, 0.0],
+                rotation=[0.0, 0.0, 0.0, 1.0],
+                scale=[1.0, 1.0, 1.0],
+                matrix=None
+            ),
+            NodeData(
+                name="child_mesh",
+                children=[],
+                mesh=0,
+                skin=None,
+                translation=[0.0, 5.0, 0.0],
+                rotation=[0.0, 0.0, 0.0, 1.0],
+                scale=[0.5, 0.5, 0.5],
+                matrix=None
+            )
+        ]
+        glb_data = GLBData(
+            json_data={'scenes': [{'nodes': [0]}], 'scene': 0},
+            binary_buffer=b'',
+            buffers=[b''],
+            accessors=[],
+            buffer_views=[],
+            nodes=nodes,
+            skins=[],
+            meshes=[],
+            materials=[],
+            textures=[],
+            images=[]
+        )
+
+        model = ModelInstance(name="nested_model")
+        model._apply_gltf_node_transform(glb_data)
+
+        assert abs(model.transform.position.x - 10.0) < 1e-5
+        assert abs(model.transform.position.y - 5.0) < 1e-5
+        assert abs(model.transform.scale.x - 0.5) < 1e-5
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

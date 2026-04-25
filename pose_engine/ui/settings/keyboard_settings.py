@@ -9,6 +9,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 
+from pose_engine.ui.settings.key_binding_editor import KeyBindingEditor
+
 from ...settings import PluginSettings
 from ...settings.defaults import (
     KEYBOARD_ACTION_NAMES,
@@ -38,7 +40,7 @@ class KeyboardSettingsWidget(QWidget):
         self._table = QTableWidget()
         self._table.setColumnCount(4)
         self._table.setHorizontalHeaderLabels(["Action", "Key", "Modifiers", ""])
-        self._table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self._table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self._table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
         self._table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)

@@ -129,5 +129,5 @@ class Transform:
     def __repr__(self) -> str:
         euler = self.get_euler_degrees()
         return (f"Transform(pos=({self._position.x:.2f}, {self._position.y:.2f}, {self._position.z:.2f}), "
-                f"rot=({euler[0]:.1f}°, {euler[1]:.1f}°, {euler[2]:.1f}°), "
+                f"rot=({euler[0]:.1f}deg, {euler[1]:.1f}deg, {euler[2]:.1f}deg), "
                 f"scale=({self._scale.x:.2f}, {self._scale.y:.2f}, {self._scale.z:.2f}))")

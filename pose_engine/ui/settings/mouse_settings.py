@@ -95,7 +95,9 @@ class MouseSettingsWidget(QWidget):
         self.settings_changed.emit()
     
     def _on_setting_changed(self) -> None:
-        
+
+        self._settings.mouse.set_scroll_zoom_speed(self._scroll_zoom.value())
+        self._settings.mouse.set_scroll_dolly_speed(self._scroll_dolly.value())
         self.settings_changed.emit()
     
     def _reset_to_defaults(self) -> None:

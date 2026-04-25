@@ -28,7 +28,7 @@ class Scene:
             name = os.path.splitext(os.path.basename(file_path))[0]
         
         model = ModelInstance(name=name)
-        model.load_from_glb(file_path)
+        model.load_from_file(file_path)
         return self.add_model(model)
     
     def remove_model(self, model_id: str) -> Optional[ModelInstance]:
@@ -271,7 +271,7 @@ class Scene:
                 
                 if os.path.exists(source_file):
                     model = ModelInstance(id=model_id, name=model_data.get('name', 'Model'))
-                    model.load_from_glb(source_file)
+                    model.load_from_file(source_file)
                     model.visible = model_data.get('visible', True)
                     
                     transform_data = model_data.get('transform', {})

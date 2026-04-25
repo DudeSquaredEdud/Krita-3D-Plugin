@@ -85,8 +85,8 @@ class CameraBookmark:
 
     def get_summary(self) -> str:
         if self.mode == 'head_look':
-            return f"FOV:{self.fov:.0f}° Head:({self.head_position[0]:.1f}, {self.head_position[1]:.1f}, {self.head_position[2]:.1f})"
-        return f"FOV:{self.fov:.0f}° Dist:{self.distance:.1f} Target:({self.target[0]:.1f}, {self.target[1]:.1f}, {self.target[2]:.1f})"
+            return f"FOV:{self.fov:.0f}deg Head:({self.head_position[0]:.1f}, {self.head_position[1]:.1f}, {self.head_position[2]:.1f})"
+        return f"FOV:{self.fov:.0f}deg Dist:{self.distance:.1f} Target:({self.target[0]:.1f}, {self.target[1]:.1f}, {self.target[2]:.1f})"
 
 
 class CameraBookmarkManager:

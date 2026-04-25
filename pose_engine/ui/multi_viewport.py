@@ -77,6 +77,7 @@ class MultiViewport3D(QOpenGLWidget):
         self._show_skeleton = True
         self._show_joints = True
         self._show_gizmo = True
+        self._silhouette_mode = False
 
         self._hovered_model_id: Optional[str] = None
         self._hovered_bone_name: Optional[str] = None
@@ -140,12 +141,14 @@ class MultiViewport3D(QOpenGLWidget):
         self._camera.distance = cam_settings.get('default_distance', 3.0)
 
     def _on_setting_changed(self, category: str, key: str, value) -> None:
-        
+
         if category == 'camera' and key == 'default_fov':
             self._camera.fov = value
         # Display scale changes just need a repaint - no camera update needed
         if category == 'gizmo' and key in ('display_scale', 'joint_display_scale'):
-            pass
+            pass # type: ignore
+        if category == 'ui' and key in ('silhouette_mode', 'silhouette_color', 'outline_width'):
+            self._apply_silhouette_settings()
         self.update()
 
     def _get_gizmo_scale(self) -> float:
@@ -166,12 +169,17 @@ class MultiViewport3D(QOpenGLWidget):
 
         try:
             model = self._scene.add_model_from_file(file_path, name)
+            print(f"[DEBUG_ADD] Loaded model: name={model.name} id={model.id} "
+                  f"mesh_data={model.mesh_data is not None} skeleton={model.skeleton is not None} "
+                  f"pos={model.transform.position} scale={model.transform.scale}")
 
             # Must make context current before OpenGL operations
             if self._gl_initialized:
                 self.makeCurrent()
                 self._init_model_gl_resources(model)
                 self.doneCurrent()
+            else:
+                print(f"[DEBUG_ADD] GL not initialized yet, will init later")
 
             self._frame_scene()
 
@@ -180,6 +188,8 @@ class MultiViewport3D(QOpenGLWidget):
 
         except Exception as e:
             print(f"Error loading model: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def remove_model(self, model_id: str) -> None:
@@ -245,23 +255,46 @@ class MultiViewport3D(QOpenGLWidget):
         return self._scene.get_selected_bone()
 
     def set_show_mesh(self, show: bool) -> None:
-        
+
         self._show_mesh = show
         self.update()
 
     def set_show_skeleton(self, show: bool) -> None:
-        
+
         self._show_skeleton = show
         self.update()
 
     def set_show_joints(self, show: bool) -> None:
-        
+
         self._show_joints = show
         self.update()
 
     def set_show_gizmo(self, show: bool) -> None:
-        
+
         self._show_gizmo = show
+        self.update()
+
+    def set_silhouette_mode(self, enabled: bool) -> None:
+
+        self._silhouette_mode = enabled
+        for renderer in self._model_renderers.values():
+            renderer.set_silhouette_mode(enabled)
+        self.update()
+
+    def is_silhouette_mode(self) -> bool:
+
+        return self._silhouette_mode
+
+    def set_silhouette_color(self, color: Tuple[float, float, float]) -> None:
+
+        for renderer in self._model_renderers.values():
+            renderer.set_silhouette_color(color)
+        self.update()
+
+    def set_outline_width(self, width: float) -> None:
+
+        for renderer in self._model_renderers.values():
+            renderer.set_outline_width(width)
         self.update()
 
     def set_model_visible(self, model_id: str, visible: bool) -> None:
@@ -364,26 +397,57 @@ class MultiViewport3D(QOpenGLWidget):
         self._gl_initialized = True
 
     def _init_model_gl_resources(self, model: ModelInstance) -> None:
-        
+
         if model.id in self._model_renderers:
+            print(f"[DEBUG_INIT] SKIP _init_model_gl_resources for {model.name} - already in _model_renderers")
             return
 
         renderer = GLRenderer()
+        print(f"[DEBUG_INIT] Created GLRenderer id={id(renderer)} for model {model.name} ({model.id})")
         if renderer.initialize():
             self._model_renderers[model.id] = renderer
+            renderer.set_silhouette_mode(self._silhouette_mode)
+            print(f"[DEBUG_INIT] Renderer initialized, stored in _model_renderers[{model.id}] id={id(renderer)}")
         else:
+            print(f"[DEBUG_INIT] Failed to initialize renderer for model {model.name} ({model.id})")
             return
 
+        stored_renderer = self._model_renderers[model.id]
+        print(f"[DEBUG_INIT] Verification: stored_renderer id={id(stored_renderer)} same={stored_renderer is renderer}")
+
+        print(f"[DEBUG_INIT] model={model.name} id={model.id} mesh_data={model.mesh_data is not None} "
+              f"visible={model.visible} transform=({model.transform.position}, {model.transform.scale})")
         if model.mesh_data:
-            if hasattr(model.mesh_data, 'sub_meshes') and model.mesh_data.sub_meshes:
-                renderer.upload_mesh_with_materials(model.mesh_data)
-            elif model.mesh_data.positions:
+            has_sub = hasattr(model.mesh_data, 'sub_meshes') and model.mesh_data.sub_meshes
+            has_pos = bool(model.mesh_data.positions) if hasattr(model.mesh_data, 'positions') else False
+            print(f"[DEBUG_INIT] has_sub_meshes={has_sub} has_positions={has_pos} "
+                  f"materials={len(model.mesh_data.materials) if model.mesh_data.materials else 0} "
+                  f"bone_mapping={model.mesh_data.bone_mapping}")
+            if has_sub:
+                for i, sm in enumerate(model.mesh_data.sub_meshes):
+                    print(f"[DEBUG_INIT] sub_mesh[{i}]: verts={len(sm.positions)} indices={len(sm.indices)} "
+                          f"material_index={sm.material_index} has_skinning={sm.skinning_data is not None} "
+                          f"has_texcoords={bool(sm.texcoords)}")
+                print(f"[DEBUG_INIT] About to call upload_mesh_with_materials on renderer id={id(renderer)}")
+                result = renderer.upload_mesh_with_materials(model.mesh_data)
+                print(f"[DEBUG_INIT] upload_mesh_with_materials result={result} renderer id={id(renderer)}")
+                print(f"[DEBUG_INIT] renderer._sub_mesh_buffers count={len(renderer._sub_mesh_buffers)} renderer id={id(renderer)}")
+                for i, buf in enumerate(renderer._sub_mesh_buffers):
+                    print(f"[DEBUG_INIT] buffer[{i}]: vao={buf.vao} index_count={buf.index_count} "
+                          f"diffuse_color={buf.diffuse_color} alpha_mode={buf.alpha_mode} "
+                          f"has_skinning={buf.has_skinning} has_texcoords={buf.has_texcoords}")
+            elif has_pos:
+                print(f"[DEBUG_INIT]   Using upload_mesh (single mesh path)")
                 renderer.upload_mesh(
                     model.mesh_data.positions,
                     model.mesh_data.normals,
                     model.mesh_data.indices,
                     model.mesh_data.skinning_data
                 )
+            else:
+                print(f"[DEBUG_INIT]   mesh_data exists but no sub_meshes and no positions!")
+        else:
+            print(f"[DEBUG_INIT]   model.mesh_data is None!")
 
         viz = SkeletonVisualizer()
         if viz.initialize():
@@ -406,11 +470,26 @@ class MultiViewport3D(QOpenGLWidget):
         view = self._camera.get_view_matrix()
         proj = self._camera.get_projection_matrix(aspect)
 
+        if not hasattr(self, '_debug_frame_count'):
+            self._debug_frame_count = 0
+        self._debug_frame_count += 1
+        _debug_this_frame = (self._debug_frame_count <= 5)
+
         for model in self._scene.get_all_models():
             if not model.visible:
+                if _debug_this_frame:
+                    print(f"[DEBUG_PAINT] model={model.name} id={model.id} SKIPPED (not visible)")
                 continue
 
             model_matrix = model.transform.to_matrix()
+
+            if _debug_this_frame:
+                has_renderer = model.id in self._model_renderers
+                has_mesh = model.mesh_data is not None
+                print(f"[DEBUG_PAINT] model={model.name} id={model.id} "
+                      f"show_mesh={self._show_mesh} has_renderer={has_renderer} has_mesh={has_mesh} "
+                      f"pos={model.transform.position} scale={model.transform.scale} "
+                      f"skeleton={model.skeleton is not None}")
 
             if self._show_mesh and model.id in self._model_renderers and model.mesh_data:
                 renderer = self._model_renderers[model.id]
@@ -801,19 +880,22 @@ class MultiViewport3D(QOpenGLWidget):
         self.update()
 
     def wheelEvent(self, event: QWheelEvent) -> None:
-        
+
         delta = event.angleDelta().y() / 120.0
         modifiers = event.modifiers()
         if modifiers & Qt.ControlModifier:
-            self._camera.move_forward(delta * 0.2)
+            dolly_speed = self._settings.mouse.get_scroll_dolly_speed() if self._settings else 0.2
+            self._camera.move_forward(delta * dolly_speed)
         else:
-            self._camera.zoom(delta * 0.1)
+            zoom_speed = self._settings.mouse.get_scroll_zoom_speed() if self._settings else 0.1
+            self._camera.zoom(delta * zoom_speed)
         self.update()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        
+
         key = event.key()
         modifiers = event.modifiers()
+        kb = self._settings.keyboard if self._settings else None
 
         movement_key = self._get_movement_key(key, modifiers)
         if movement_key:
@@ -821,35 +903,54 @@ class MultiViewport3D(QOpenGLWidget):
             event.accept()
             return
 
-        if key == Qt.Key_F:
+        if kb and kb.matches('frame_model', key, modifiers):
             self.frame_all()
-        elif key == Qt.Key_T:
+        elif kb and kb.matches('toggle_mesh', key, modifiers):
             self.set_show_mesh(not self._show_mesh)
-        elif key == Qt.Key_S:
-            if modifiers & Qt.ControlModifier and modifiers & Qt.ShiftModifier:
-                self.sync_to_layer_requested.emit()
-            else:
-                self.set_show_skeleton(not self._show_skeleton)
-        elif key == Qt.Key_G:
+        elif kb and kb.matches('toggle_skeleton', key, modifiers):
+            self.set_show_skeleton(not self._show_skeleton)
+        elif kb and kb.matches('toggle_gizmo_mode', key, modifiers):
             self.toggle_gizmo_mode()
-        elif key == Qt.Key_X:
-            self.toggle_gizmo_transform_space()
-        elif key == Qt.Key_R:
+        elif kb and kb.matches('gizmo_rotate', key, modifiers):
+            self.set_gizmo_mode("rotation")
+        elif kb and kb.matches('gizmo_move', key, modifiers):
+            self.set_gizmo_mode("movement")
+        elif kb and kb.matches('gizmo_scale', key, modifiers):
+            self.set_gizmo_mode("scale")
+        elif kb and kb.matches('reset_camera', key, modifiers):
             self._camera = Camera()
             self._frame_scene()
-        
-        elif Qt.Key_1 <= key <= Qt.Key_9:
-            index = key - Qt.Key_0
-            if index >= 1 and index <= 9:
-                if modifiers & Qt.ControlModifier:
-                    self._save_bookmark(index)
-                else:
-                    self._recall_bookmark(index)
+        elif kb and kb.matches('sync_to_layer', key, modifiers):
+            self.sync_to_layer_requested.emit()
+        elif kb and kb.matches('reset_bone', key, modifiers):
+            model, bone = self._scene.get_selected_bone()
+            if bone:
+                bone.pose_transform.rotation = Quat()
+                bone.pose_transform.position = Vec3()
+                bone.pose_transform.scale = Vec3(1, 1, 1)
+                bone.pose_transform._matrix_dirty = True
+                self.pose_changed.emit()
+        elif kb and kb.matches('toggle_head_look', key, modifiers):
+            self.set_head_look_mode(not self._head_look_mode)
+        elif kb and kb.matches('deselect', key, modifiers):
+            self.select_bone(self._scene._selected_model_id or '', '')
+        elif key == Qt.Key_X:
+            self.toggle_gizmo_transform_space()
+        else:
+            for i in range(1, 10):
+                recall_action = f'bookmark_recall_{i}'
+                save_action = f'bookmark_save_{i}'
+                if kb and kb.matches(save_action, key, modifiers):
+                    self._save_bookmark(i)
+                    break
+                elif kb and kb.matches(recall_action, key, modifiers):
+                    self._recall_bookmark(i)
+                    break
 
         self.update()
 
     def keyReleaseEvent(self, event: QKeyEvent) -> None:
-        
+
         key = event.key()
         modifiers = event.modifiers()
 
@@ -862,8 +963,26 @@ class MultiViewport3D(QOpenGLWidget):
         super().keyReleaseEvent(event)
 
     def _get_movement_key(self, key: int, modifiers: int) -> Optional[str]:
-        
-        # Movement keys don't use modifiers (Shift/Ctrl modify speed, not action)
+
+        if modifiers != Qt.NoModifier:
+            return None
+
+        kb = self._settings.keyboard if self._settings else None
+        if kb:
+            if kb.matches('camera_forward', key, Qt.NoModifier):
+                return 'forward'
+            elif kb.matches('camera_backward', key, Qt.NoModifier):
+                return 'backward'
+            elif kb.matches('camera_left', key, Qt.NoModifier):
+                return 'left'
+            elif kb.matches('camera_right', key, Qt.NoModifier):
+                return 'right'
+            elif kb.matches('camera_up', key, Qt.NoModifier):
+                return 'up'
+            elif kb.matches('camera_down', key, Qt.NoModifier):
+                return 'down'
+            return None
+
         if key == Qt.Key_W:
             return 'forward'
         elif key == Qt.Key_S:
@@ -1387,7 +1506,7 @@ class MultiViewport3D(QOpenGLWidget):
             return
 
         # The bone moves in an arc around the parent.
-        # For small movements, arc_length ≈ arm_length * rotation_angle
+        # For small movements, arc_length = arm_length * rotation_angle
         # So: rotation_angle = delta_magnitude / arm_length
 
         delta_length = delta.length()
@@ -1419,12 +1538,12 @@ class MultiViewport3D(QOpenGLWidget):
         # Determine the sign of the rotation
         # Check if the rotation direction is correct by verifying the cross product
         # If we rotate by +angle around rotation_axis, the bone should move in +delta direction
-        # The cross product arm × rotation_axis gives the tangent direction
+        # The cross product arm * rotation_axis gives the tangent direction
         tangent = arm_norm.cross(rotation_axis)
     
-        # The tangent direction is arm × rotation_axis
-        # For correct rotation: rotation_axis × arm should point in delta direction
-        # Since rotation_axis × arm = -(arm × rotation_axis) = -tangent
+        # The tangent direction is arm * rotation_axis
+        # For correct rotation: rotation_axis * arm should point in delta direction
+        # Since rotation_axis * arm = -(arm * rotation_axis) = -tangent
         # We need -tangent to align with delta, so tangent should be opposite to delta
         # If tangent.dot(delta_norm) > 0, tangent points same as delta, which is wrong
         if tangent.dot(delta_norm) > 0:
@@ -1588,9 +1707,7 @@ class MultiViewport3D(QOpenGLWidget):
     
         # Emit signal if mode changed
         if new_mode != old_mode:
-            print(f"[DEBUG] _recall_bookmark: emitting camera_mode_changed signal with mode: {new_mode}")
             self.camera_mode_changed.emit(new_mode)
-            print(f"[DEBUG] _recall_bookmark: signal emitted")
     
         self.update()
 
@@ -1665,6 +1782,22 @@ class MultiViewport3D(QOpenGLWidget):
         for renderer in self._model_renderers.values():
             renderer.set_distance_range(near, far)
         self.update()
+
+    def _apply_silhouette_settings(self) -> None:
+
+        if not self._settings:
+            return
+        ui = self._settings.ui
+        self._silhouette_mode = ui.get('silhouette_mode', False)
+        silhouette_color_hex = ui.get('silhouette_color', '#595959')
+        outline_width = ui.get('outline_width', 0.005)
+        r = int(silhouette_color_hex[1:3], 16) / 255.0
+        g = int(silhouette_color_hex[3:5], 16) / 255.0
+        b = int(silhouette_color_hex[5:7], 16) / 255.0
+        for renderer in self._model_renderers.values():
+            renderer.set_silhouette_mode(self._silhouette_mode)
+            renderer.set_silhouette_color((r, g, b))
+            renderer.set_outline_width(outline_width)
 
     def set_preset_view(self, view: str) -> None:
 
