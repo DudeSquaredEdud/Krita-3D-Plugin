@@ -80,6 +80,15 @@ class KeyboardSettings:
             return False
         return binding.matches(key, modifiers)
     
+    def find_action(self, key: int, modifiers: int) -> Optional[str]:
+        functional_modifiers = int(modifiers) & int(
+            Qt.ShiftModifier | Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)
+        for action, binding in self._shortcuts.items():
+            if binding.key == key and binding.modifiers == functional_modifiers:
+                return action
+        return None
+
+    
     def get_all_bindings(self) -> Dict[str, KeyBinding]:
         
         return dict(self._shortcuts)

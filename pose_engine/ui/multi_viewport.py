@@ -1,5 +1,5 @@
 import math
-from typing import Optional, Tuple, Dict
+from typing import Callable, Optional, Tuple, Dict
 
 from PyQt5.QtWidgets import QOpenGLWidget, QWidget
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
@@ -41,6 +41,15 @@ class MultiViewport3D(QOpenGLWidget):
     model_selection_changed = pyqtSignal(str) # model_id - emitted when active model changes
     sync_to_layer_requested = pyqtSignal() # Emitted when sync to layer shortcut is pressed
     camera_mode_changed = pyqtSignal(str) # Emitted when camera mode changes (e.g., when loading a bookmark) - "orbit" or "head_look"
+
+    _MOVEMENT_ACTION_MAP = {
+        'camera_forward': 'forward',
+        'camera_backward': 'backward',
+        'camera_left': 'left',
+        'camera_right': 'right',
+        'camera_up': 'up',
+        'camera_down': 'down',
+    }
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -97,6 +106,29 @@ class MultiViewport3D(QOpenGLWidget):
         self._bounding_box_doc_size: Tuple[int, int] = (0, 0)
         self._bounding_box_renderer: Optional[BoundingBoxRenderer] = None
 
+        self._key_handlers: Dict[str, Callable] = {
+            'frame_model': self.frame_all,
+            'toggle_mesh': lambda: self.set_show_mesh(not self._show_mesh),
+            'toggle_skeleton': lambda: self.set_show_skeleton(not self._show_skeleton),
+            'toggle_gizmo_mode': self.toggle_gizmo_mode,
+            'gizmo_rotate': lambda: self.set_gizmo_mode("rotation"),
+            'gizmo_move': lambda: self.set_gizmo_mode("movement"),
+            'gizmo_scale': lambda: self.set_gizmo_mode("scale"),
+            'reset_camera': self._reset_camera,
+            'sync_to_layer': self.sync_to_layer_requested.emit,
+            'reset_bone': self.reset_bone,
+            'toggle_head_look': lambda: self.set_head_look_mode(not self._head_look_mode),
+            'deselect': lambda: self.select_bone(self._scene._selected_model_id or '', ''),
+            'toggle_transform_space': self.toggle_gizmo_transform_space,
+            'toggle_joints': lambda: self.set_show_joints(not self._show_joints),
+            'toggle_gizmo': lambda: self.set_show_gizmo(not self._show_gizmo),
+
+        }
+        # Bookmark handlers (1–9)
+        for _i in range(1, 10):
+            self._key_handlers[f'bookmark_save_{_i}'] = lambda i=_i: self._save_bookmark(i)
+            self._key_handlers[f'bookmark_recall_{_i}'] = lambda i=_i: self._recall_bookmark(i)
+
 
         self._gl_initialized = False
 
@@ -140,6 +172,11 @@ class MultiViewport3D(QOpenGLWidget):
         self._camera.fov = cam_settings.get('default_fov', 45.0)
         self._camera.distance = cam_settings.get('default_distance', 3.0)
 
+    def _reset_camera(self) -> None:
+        self._camera = Camera()
+        self._frame_scene()
+
+
     def _on_setting_changed(self, category: str, key: str, value) -> None:
 
         if category == 'camera' and key == 'default_fov':
@@ -156,14 +193,14 @@ class MultiViewport3D(QOpenGLWidget):
         display_scale = 0.15  # Fallback default
         if self._settings:
             display_scale = self._settings.gizmo.get_display_scale()
-        return max(0.01, self._camera.get_effective_view_distance() * display_scale)
+        return max(0.01, display_scale)
 
     def _get_joint_scale(self) -> float:
 
         joint_display_scale = 0.15  # Fallback default
         if self._settings:
             joint_display_scale = self._settings.gizmo.get_joint_display_scale()
-        return max(0.01, self._camera.get_effective_view_distance() * joint_display_scale)
+        return max(0.01, joint_display_scale)
 
     def add_model(self, file_path: str, name: Optional[str] = None) -> Optional[ModelInstance]:
 
@@ -879,7 +916,6 @@ class MultiViewport3D(QOpenGLWidget):
         self.update()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-
         key = event.key()
         modifiers = event.modifiers()
         kb = self._settings.keyboard if self._settings else None
@@ -890,51 +926,24 @@ class MultiViewport3D(QOpenGLWidget):
             event.accept()
             return
 
-        if kb and kb.matches('frame_model', key, modifiers):
-            self.frame_all()
-        elif kb and kb.matches('toggle_mesh', key, modifiers):
-            self.set_show_mesh(not self._show_mesh)
-        elif kb and kb.matches('toggle_skeleton', key, modifiers):
-            self.set_show_skeleton(not self._show_skeleton)
-        elif kb and kb.matches('toggle_gizmo_mode', key, modifiers):
-            self.toggle_gizmo_mode()
-        elif kb and kb.matches('gizmo_rotate', key, modifiers):
-            self.set_gizmo_mode("rotation")
-        elif kb and kb.matches('gizmo_move', key, modifiers):
-            self.set_gizmo_mode("movement")
-        elif kb and kb.matches('gizmo_scale', key, modifiers):
-            self.set_gizmo_mode("scale")
-        elif kb and kb.matches('reset_camera', key, modifiers):
-            self._camera = Camera()
-            self._frame_scene()
-        elif kb and kb.matches('sync_to_layer', key, modifiers):
-            self.sync_to_layer_requested.emit()
-        elif kb and kb.matches('reset_bone', key, modifiers):
-            model, bone = self._scene.get_selected_bone()
-            if bone:
-                bone.pose_transform.rotation = Quat()
-                bone.pose_transform.position = Vec3()
-                bone.pose_transform.scale = Vec3(1, 1, 1)
-                bone.pose_transform._matrix_dirty = True
-                self.pose_changed.emit()
-        elif kb and kb.matches('toggle_head_look', key, modifiers):
-            self.set_head_look_mode(not self._head_look_mode)
-        elif kb and kb.matches('deselect', key, modifiers):
-            self.select_bone(self._scene._selected_model_id or '', '')
-        elif key == Qt.Key_X:
-            self.toggle_gizmo_transform_space()
-        else:
-            for i in range(1, 10):
-                recall_action = f'bookmark_recall_{i}'
-                save_action = f'bookmark_save_{i}'
-                if kb and kb.matches(save_action, key, modifiers):
-                    self._save_bookmark(i)
-                    break
-                elif kb and kb.matches(recall_action, key, modifiers):
-                    self._recall_bookmark(i)
-                    break
+        if kb:
+            action = kb.find_action(key, modifiers)
+            if action:
+                handler = self._key_handlers.get(action)
+                if handler: 
+                    handler()
 
         self.update()
+
+
+    def reset_bone(self):
+        _, bone = self._scene.get_selected_bone()
+        if bone:
+            bone.pose_transform.rotation = Quat()
+            bone.pose_transform.position = Vec3()
+            bone.pose_transform.scale = Vec3(1, 1, 1)
+            bone.pose_transform._matrix_dirty = True
+            self.pose_changed.emit()
 
     def keyReleaseEvent(self, event: QKeyEvent) -> None:
 
@@ -950,39 +959,18 @@ class MultiViewport3D(QOpenGLWidget):
         super().keyReleaseEvent(event)
 
     def _get_movement_key(self, key: int, modifiers: int) -> Optional[str]:
-
         if modifiers != Qt.NoModifier:
             return None
-
         kb = self._settings.keyboard if self._settings else None
         if kb:
-            if kb.matches('camera_forward', key, Qt.NoModifier):
-                return 'forward'
-            elif kb.matches('camera_backward', key, Qt.NoModifier):
-                return 'backward'
-            elif kb.matches('camera_left', key, Qt.NoModifier):
-                return 'left'
-            elif kb.matches('camera_right', key, Qt.NoModifier):
-                return 'right'
-            elif kb.matches('camera_up', key, Qt.NoModifier):
-                return 'up'
-            elif kb.matches('camera_down', key, Qt.NoModifier):
-                return 'down'
-            return None
+            action = kb.find_action(key, Qt.NoModifier)
+            if action and action in self._MOVEMENT_ACTION_MAP:
+                return self._MOVEMENT_ACTION_MAP[action]
+        # Fallback defaults when no settings
+        fallback = {Qt.Key_W: 'forward', Qt.Key_S: 'backward', Qt.Key_A: 'left',
+                    Qt.Key_D: 'right', Qt.Key_Q: 'up', Qt.Key_E: 'down'}
+        return fallback.get(key)
 
-        if key == Qt.Key_W:
-            return 'forward'
-        elif key == Qt.Key_S:
-            return 'backward'
-        elif key == Qt.Key_A:
-            return 'left'
-        elif key == Qt.Key_D:
-            return 'right'
-        elif key == Qt.Key_Q:
-            return 'up'
-        elif key == Qt.Key_E:
-            return 'down'
-        return None
 
     def _update_keyboard_movement(self, delta_time: float) -> None:
         

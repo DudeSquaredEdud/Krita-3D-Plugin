@@ -30,7 +30,6 @@ class KeyBinding:
         self.modifiers = int(self.modifiers) & valid_modifiers
     
     def matches(self, key: int, modifiers: int) -> bool:
-
         return self.key == key and self.modifiers == modifiers
     
     def to_dict(self) -> Dict[str, Any]:

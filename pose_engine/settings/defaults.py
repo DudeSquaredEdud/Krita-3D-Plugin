@@ -16,6 +16,7 @@ DEFAULT_KEYBOARD_SHORTCUTS = {
     'gizmo_rotate': (Qt.Key_V, Qt.NoModifier),
     'gizmo_move': (Qt.Key_B, Qt.NoModifier),
     'gizmo_scale': (Qt.Key_N, Qt.NoModifier),
+    'toggle_transform_space': (Qt.Key_X, Qt.NoModifier),
 
     'undo': (Qt.Key_Z, Qt.ControlModifier),
     'redo': (Qt.Key_Z, Qt.ControlModifier | Qt.ShiftModifier),
@@ -75,6 +76,7 @@ KEYBOARD_ACTION_NAMES = {
 'gizmo_rotate': 'Gizmo: Rotate',
 'gizmo_move': 'Gizmo: Move',
 'gizmo_scale': 'Gizmo: Scale',
+'toggle_transform_space': 'Toggle Transform Space',
 'undo': 'Undo',
 'redo': 'Redo',
 'redo_alt': 'Redo (Alternative)',

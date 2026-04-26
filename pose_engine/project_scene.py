@@ -113,7 +113,6 @@ class ProjectScene:
         self._settings = value
 
     def mark_changed(self):
-        print("DEBUG: UNSAVED CHANGES")
         
         self._has_unsaved_changes = True
         self._change_count += 1

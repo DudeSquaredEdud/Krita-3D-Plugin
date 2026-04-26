@@ -176,7 +176,7 @@ class Camera:
 
         if self._head_look_mode:
             # Dolly the camera position in head-look mode
-            self.move_forward(-delta * 3.0)
+            self.move_forward(delta * 3.0)
         else:
             # Dolly the camera distance in orbit mode
             self.distance = max(0.5, min(50.0, self.distance * (1.0 - delta)))
