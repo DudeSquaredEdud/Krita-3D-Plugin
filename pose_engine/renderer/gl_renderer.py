@@ -3,6 +3,9 @@ from OpenGL.GL import *
 from OpenGL.GL import shaders
 import numpy as np
 
+from ..logger import get_logger
+logger = get_logger(__name__)
+
 from ..vec3 import Vec3
 from ..mat4 import Mat4
 from ..quat import Quat
@@ -345,7 +348,7 @@ class GLRenderer:
             return True
 
         except Exception as e:
-            print(f"Failed to initialize renderer: {e}")
+            logger.debug(f"Failed to initialize renderer: {e}")
             return False
 
     def upload_mesh(self, positions: List[Vec3], normals: List[Vec3],
@@ -373,7 +376,7 @@ class GLRenderer:
 
         vao = glGenVertexArrays(1)
         if vao == 0:
-            print("Failed to create VAO")
+            logger.debug("Failed to create VAO")
             return False
         buffers.vao = int(vao)
 
@@ -428,7 +431,7 @@ class GLRenderer:
     def upload_mesh_with_materials(self, mesh_data) -> bool:
         try:
             if not self._initialized:
-                print("[UPLOAD_DBG] upload_mesh_with_materials: NOT initialized!")
+                logger.debug("[UPLOAD_DBG] upload_mesh_with_materials: NOT initialized!")
                 return False
 
             for buffers in self._sub_mesh_buffers:
@@ -445,11 +448,11 @@ class GLRenderer:
 
             all_texcoords = []
 
-            print(f"[UPLOAD_DBG] sub_meshes count={len(mesh_data.sub_meshes)} materials={len(mesh_data.materials) if mesh_data.materials else 0}")
+            logger.debug(f"[UPLOAD_DBG] sub_meshes count={len(mesh_data.sub_meshes)} materials={len(mesh_data.materials) if mesh_data.materials else 0}")
 
             for i, sub_mesh in enumerate(mesh_data.sub_meshes):
                 all_texcoords.append(sub_mesh.texcoords)
-                print(f"[UPLOAD_DBG] Processing sub_mesh[{i}]: positions={len(sub_mesh.positions)} normals={len(sub_mesh.normals)} indices={len(sub_mesh.indices)} material_index={sub_mesh.material_index}")
+                logger.debug(f"[UPLOAD_DBG] Processing sub_mesh[{i}]: positions={len(sub_mesh.positions)} normals={len(sub_mesh.normals)} indices={len(sub_mesh.indices)} material_index={sub_mesh.material_index}")
 
                 buffers = self._create_sub_mesh_buffers(
                     sub_mesh.positions,
@@ -460,15 +463,15 @@ class GLRenderer:
                 )
 
                 if buffers is None:
-                    print(f"[UPLOAD_DBG] _create_sub_mesh_buffers returned None for sub_mesh[{i}]!")
+                    logger.debug(f"[UPLOAD_DBG] _create_sub_mesh_buffers returned None for sub_mesh[{i}]!")
                     continue
 
-                print(f"[UPLOAD_DBG] sub_mesh[{i}] buffer created OK, about to set material_index={sub_mesh.material_index}")
+                logger.debug(f"[UPLOAD_DBG] sub_mesh[{i}] buffer created OK, about to set material_index={sub_mesh.material_index}")
                 buffers.material_index = sub_mesh.material_index
-                print(f"[UPLOAD_DBG] material_index set, checking material block...")
+                logger.debug("[UPLOAD_DBG] material_index set, checking material block...")
 
                 if sub_mesh.material_index is not None and sub_mesh.material_index < len(mesh_data.materials):
-                    print(f"[UPLOAD_DBG] Entering material block for index {sub_mesh.material_index}")
+                    logger.debug(f"[UPLOAD_DBG] Entering material block for index {sub_mesh.material_index}")
                     mat = mesh_data.materials[sub_mesh.material_index]
                     buffers.diffuse_color = (mat.base_color_factor[0],
                                              mat.base_color_factor[1],
@@ -485,16 +488,16 @@ class GLRenderer:
                         if texture_id is not None:
                             buffers.texture_id = texture_id
 
-                print(f"[UPLOAD_DBG] About to append buffer to _sub_mesh_buffers (current count={len(self._sub_mesh_buffers)})")
+                logger.debug(f"[UPLOAD_DBG] About to append buffer to _sub_mesh_buffers (current count={len(self._sub_mesh_buffers)})")
                 self._sub_mesh_buffers.append(buffers)
-                print(f"[UPLOAD_DBG] Appended! count={len(self._sub_mesh_buffers)}")
+                logger.debug(f"[UPLOAD_DBG] Appended! count={len(self._sub_mesh_buffers)}")
 
-            print(f"[UPLOAD_DBG] Loop done, final count={len(self._sub_mesh_buffers)}")
+            logger.debug(f"[UPLOAD_DBG] Loop done, final count={len(self._sub_mesh_buffers)}")
             return len(self._sub_mesh_buffers) > 0
         except Exception as e:
-            print(f"[UPLOAD_DBG] EXCEPTION in upload_mesh_with_materials: {type(e).__name__}: {e}")
+            logger.debug(f"[UPLOAD_DBG] EXCEPTION in upload_mesh_with_materials: {type(e).__name__}: {e}")
             import traceback
-            traceback.print_exc()
+            traceback.logger.debug_exc()
             return False
 
     def _create_sub_mesh_buffers(self, positions: List[Vec3], normals: List[Vec3],
@@ -504,41 +507,41 @@ class GLRenderer:
         try:
             buffers = MeshBuffers()
 
-            print(f"[BUF_DBG] _create_sub_mesh_buffers: positions={len(positions)} normals={len(normals)} indices={len(indices)} texcoords={len(texcoords) if texcoords else 0}")
+            logger.debug(f"[BUF_DBG] _create_sub_mesh_buffers: positions={len(positions)} normals={len(normals)} indices={len(indices)} texcoords={len(texcoords) if texcoords else 0}")
 
             pos_array = np.array([(p.x, p.y, p.z) for p in positions], dtype=np.float32)
             nrm_array = np.array([(n.x, n.y, n.z) for n in normals], dtype=np.float32)
             idx_array = np.array(indices, dtype=np.uint32)
 
-            print(f"[BUF_DBG] numpy arrays created: pos={pos_array.shape} nrm={nrm_array.shape} idx={idx_array.shape}")
+            logger.debug(f"[BUF_DBG] numpy arrays created: pos={pos_array.shape} nrm={nrm_array.shape} idx={idx_array.shape}")
 
             buffers.vertex_count = len(positions)
             buffers.index_count = len(indices)
             buffers.has_texcoords = texcoords is not None and len(texcoords) > 0
 
             vao = glGenVertexArrays(1)
-            print(f"[BUF_DBG] glGenVertexArrays returned: {vao} type={type(vao)}")
+            logger.debug(f"[BUF_DBG] glGenVertexArrays returned: {vao} type={type(vao)}")
             if vao == 0:
-                print("[BUF_DBG] VAO is 0, returning None")
+                logger.debug("[BUF_DBG] VAO is 0, returning None")
                 return None
             buffers.vao = int(vao)
 
             glBindVertexArray(buffers.vao)
-            print("[BUF_DBG] VAO bound, creating position VBO")
+            logger.debug("[BUF_DBG] VAO bound, creating position VBO")
 
             buffers.vbo_position = glGenBuffers(1)
             glBindBuffer(GL_ARRAY_BUFFER, buffers.vbo_position)
             glBufferData(GL_ARRAY_BUFFER, pos_array.nbytes, pos_array, GL_STATIC_DRAW)
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, None)
             glEnableVertexAttribArray(0)
-            print(f"[BUF_DBG] position VBO done: {buffers.vbo_position}")
+            logger.debug(f"[BUF_DBG] position VBO done: {buffers.vbo_position}")
 
             buffers.vbo_normal = glGenBuffers(1)
             glBindBuffer(GL_ARRAY_BUFFER, buffers.vbo_normal)
             glBufferData(GL_ARRAY_BUFFER, nrm_array.nbytes, nrm_array, GL_STATIC_DRAW)
             glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, None)
             glEnableVertexAttribArray(1)
-            print(f"[BUF_DBG] normal VBO done: {buffers.vbo_normal}")
+            logger.debug(f"[BUF_DBG] normal VBO done: {buffers.vbo_normal}")
 
             buffers.has_skinning = skinning_data is not None
 
@@ -564,11 +567,11 @@ class GLRenderer:
             glBufferData(GL_ARRAY_BUFFER, weights_array.nbytes, weights_array, GL_STATIC_DRAW)
             glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 0, None)
             glEnableVertexAttribArray(3)
-            print("[BUF_DBG] joints/weights VBOs done")
+            logger.debug("[BUF_DBG] joints/weights VBOs done")
 
             if buffers.has_texcoords:
                 tex_array = np.array(texcoords, dtype=np.float32)
-                print(f"[BUF_DBG] texcoords array: shape={tex_array.shape}")
+                logger.debug(f"[BUF_DBG] texcoords array: shape={tex_array.shape}")
 
                 buffers.vbo_texcoord = glGenBuffers(1)
                 glBindBuffer(GL_ARRAY_BUFFER, buffers.vbo_texcoord)
@@ -582,23 +585,22 @@ class GLRenderer:
                 glBufferData(GL_ARRAY_BUFFER, tex_array.nbytes, tex_array, GL_STATIC_DRAW)
                 glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, 0, None)
                 glEnableVertexAttribArray(4)
-            print(f"[BUF_DBG] texcoord VBO done: {buffers.vbo_texcoord}")
+            logger.debug(f"[BUF_DBG] texcoord VBO done: {buffers.vbo_texcoord}")
 
             buffers.ebo = glGenBuffers(1)
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers.ebo)
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, idx_array.nbytes, idx_array, GL_STATIC_DRAW)
-            print(f"[BUF_DBG] EBO done: {buffers.ebo} index_count={buffers.index_count}")
+            logger.debug(f"[BUF_DBG] EBO done: {buffers.ebo} index_count={buffers.index_count}")
 
             glBindVertexArray(0)
 
-            print(f"[BUF_DBG] SUCCESS: vao={buffers.vao} vertex_count={buffers.vertex_count} index_count={buffers.index_count}")
+            logger.debug(f"[BUF_DBG] SUCCESS: vao={buffers.vao} vertex_count={buffers.vertex_count} index_count={buffers.index_count}")
             return buffers
         except Exception as e:
-            print(f"[BUF_DBG] EXCEPTION in _create_sub_mesh_buffers: {type(e).__name__}: {e}")
+            logger.debug(f"[BUF_DBG] EXCEPTION in _create_sub_mesh_buffers: {type(e).__name__}: {e}")
             import traceback
-            traceback.print_exc()
+            traceback.logger.debug_exc()
             return None
-    # faaaaaaaaaaaaaaaaaaaaaaaaaaaaack. aaaaaaaaaaaaaaaaaaaaaaaaaaa. agh. i hate opengl.
 
     _debug_render_count: int = 0
 
@@ -609,7 +611,7 @@ class GLRenderer:
         if not self._initialized:
             GLRenderer._debug_render_count += 1
             if GLRenderer._debug_render_count <= 5:
-                print(f"[DEBUG_RENDER] renderer NOT initialized!")
+                logger.debug(f"[DEBUG_RENDER] renderer NOT initialized!")
             return
 
         GLRenderer._debug_render_count += 1
@@ -617,25 +619,25 @@ class GLRenderer:
         _dbg_debug_enabled = False
 
         if _dbg and _dbg_debug_enabled:
-            print(f"[DEBUG_RENDER] sub_mesh_buffers={len(self._sub_mesh_buffers)} "
+            logger.debug(f"[DEBUG_RENDER] sub_mesh_buffers={len(self._sub_mesh_buffers)} "
                   f"mesh_buffers={self._mesh_buffers is not None} "
                   f"has_skeleton={skeleton is not None}")
 
         if self._sub_mesh_buffers:
             if _dbg and _dbg_debug_enabled:
                 for i, buf in enumerate(self._sub_mesh_buffers):
-                    print(f"[DEBUG_RENDER] sub[{i}]: vao={buf.vao} index_count={buf.index_count} "
+                    logger.debug(f"[DEBUG_RENDER] sub[{i}]: vao={buf.vao} index_count={buf.index_count} "
                           f"diffuse_color={buf.diffuse_color} alpha_mode={buf.alpha_mode} "
                           f"has_skinning={buf.has_skinning} texture_id={buf.texture_id}")
             self._render_sub_meshes(skeleton, view_matrix, projection_matrix, model_matrix, camera_position)
         elif self._mesh_buffers is not None:
             if _dbg and _dbg_debug_enabled:
                 buf = self._mesh_buffers
-                print(f"[DEBUG_RENDER] single: vao={buf.vao} index_count={buf.index_count} "
+                logger.debug(f"[DEBUG_RENDER] single: vao={buf.vao} index_count={buf.index_count} "
                       f"diffuse_color={buf.diffuse_color} has_skinning={buf.has_skinning}")
             self._render_single_mesh(self._mesh_buffers, skeleton, view_matrix, projection_matrix, model_matrix, camera_position)
         elif _dbg and _dbg_debug_enabled:
-            print(f"[DEBUG_RENDER] NO buffers to render! sub_mesh_buffers=[] mesh_buffers=None")
+            logger.debug(f"[DEBUG_RENDER] NO buffers to render! sub_mesh_buffers=[] mesh_buffers=None")
 
     def _set_distance_gradient_uniforms(self, camera_position: Optional[Vec3]) -> None:
         if self._distance_gradient_enabled and camera_position is not None:
@@ -692,7 +694,7 @@ class GLRenderer:
                 glDrawElements(GL_TRIANGLES, buffers.index_count, GL_UNSIGNED_INT, None)
                 glBindVertexArray(0)
             except Exception as e:
-                print(f"[GL_RENDERER] VAO binding failed (likely offscreen context issue): {e}")
+                logger.debug(f"[GL_RENDERER] VAO binding failed (likely offscreen context issue): {e}")
                 self._render_without_vao(buffers)
 
     def _draw_mesh_with_outline(self, buffers: MeshBuffers) -> None:
@@ -707,7 +709,7 @@ class GLRenderer:
             glDrawElements(GL_TRIANGLES, buffers.index_count, GL_UNSIGNED_INT, None)
             glBindVertexArray(0)
         except Exception as e:
-            print(f"[GL_RENDERER] VAO binding failed in outline pass: {e}")
+            logger.debug(f"[GL_RENDERER] VAO binding failed in outline pass: {e}")
             self._render_without_vao(buffers)
 
         glCullFace(GL_BACK)
@@ -717,7 +719,7 @@ class GLRenderer:
             glDrawElements(GL_TRIANGLES, buffers.index_count, GL_UNSIGNED_INT, None)
             glBindVertexArray(0)
         except Exception as e:
-            print(f"[GL_RENDERER] VAO binding failed in silhouette fill pass: {e}")
+            logger.debug(f"[GL_RENDERER] VAO binding failed in silhouette fill pass: {e}")
             self._render_without_vao(buffers)
 
         glDisable(GL_CULL_FACE)
@@ -796,7 +798,7 @@ class GLRenderer:
                 glDrawElements(GL_TRIANGLES, buffers.index_count, GL_UNSIGNED_INT, None)
                 glBindVertexArray(0)
             except Exception as e:
-                print(f"[GL_RENDERER] VAO binding failed for sub-mesh: {e}")
+                logger.debug(f"[GL_RENDERER] VAO binding failed for sub-mesh: {e}")
                 self._render_without_vao(buffers)
 
             if buffers.texture_id is not None:
@@ -819,7 +821,7 @@ class GLRenderer:
                 glDrawElements(GL_TRIANGLES, buffers.index_count, GL_UNSIGNED_INT, None)
                 glBindVertexArray(0)
             except Exception as e:
-                print(f"[GL_RENDERER] VAO binding failed in outline pass: {e}")
+                logger.debug(f"[GL_RENDERER] VAO binding failed in outline pass: {e}")
                 self._render_without_vao(buffers)
 
         glCullFace(GL_BACK)
@@ -831,7 +833,7 @@ class GLRenderer:
                 glDrawElements(GL_TRIANGLES, buffers.index_count, GL_UNSIGNED_INT, None)
                 glBindVertexArray(0)
             except Exception as e:
-                print(f"[GL_RENDERER] VAO binding failed in silhouette fill pass: {e}")
+                logger.debug(f"[GL_RENDERER] VAO binding failed in silhouette fill pass: {e}")
                 self._render_without_vao(buffers)
 
         glDisable(GL_CULL_FACE)
@@ -839,7 +841,7 @@ class GLRenderer:
     def _set_bone_dual_quaternions(self, skeleton: Skeleton) -> None:
         bone_count = len(skeleton)
         if bone_count > MAX_BONES:
-            print(f"[GL_RENDERER] WARNING: Skeleton has {bone_count} bones, "
+            logger.debug(f"[GL_RENDERER] WARNING: Skeleton has {bone_count} bones, "
                   f"but shader only supports {MAX_BONES}. "
                   f"Bones beyond index {MAX_BONES - 1} will not be skinned.")
 
@@ -862,7 +864,7 @@ class GLRenderer:
             return
 
         try:
-            print("[GL_RENDERER] Using fallback rendering without VAO")
+            logger.debug("[GL_RENDERER] Using fallback rendering without VAO")
 
             glBindBuffer(GL_ARRAY_BUFFER, buffers.vbo_position)
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, None)
@@ -904,12 +906,12 @@ class GLRenderer:
             glBindBuffer(GL_ARRAY_BUFFER, 0)
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
     
-            print("[GL_RENDERER] Fallback rendering completed")
+            logger.debug("[GL_RENDERER] Fallback rendering completed")
 
         except Exception as fallback_e:
-            print(f"[GL_RENDERER] Fallback rendering also failed: {fallback_e}")
+            logger.debug(f"[GL_RENDERER] Fallback rendering also failed: {fallback_e}")
             import traceback
-            traceback.print_exc()
+            traceback.logger.debug_exc()
 
     def _matrix_to_dual_quat(self, mat: Mat4) -> List[float]:
         # Quat.from_matrix returns (w, x, y, z) but GLSL uses (x, y, z, w)
@@ -980,7 +982,7 @@ class GLRenderer:
             buffer.close()
         
             if img.isNull():
-                print("[GL_RENDERER] Failed to load image data")
+                logger.debug("[GL_RENDERER] Failed to load image data")
                 return None
         
             if img.format() != QImage.Format_RGBA8888:
@@ -1017,9 +1019,9 @@ class GLRenderer:
             return int(texture_id)
             
         except Exception as e:
-            print(f"[GL_RENDERER] Failed to create texture: {e}")
+            logger.debug(f"[GL_RENDERER] Failed to create texture: {e}")
             import traceback
-            traceback.print_exc()
+            traceback.logger.debug_exc()
             return None
 
     def _delete_buffers(self, buffers: MeshBuffers) -> None:

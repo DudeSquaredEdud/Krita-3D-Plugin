@@ -10,6 +10,9 @@ from .gltf.builder import MeshData
 from .gltf.loader import GLBLoader, GLBData
 from .gltf.builder import build_skeleton_from_gltf, build_mesh_from_gltf
 
+from .logger import get_logger
+logger = get_logger(__name__)
+
 
 class ModelInstance:
     
@@ -50,11 +53,11 @@ class ModelInstance:
 
     def _apply_gltf_node_transform(self, glb_data: GLBData) -> None:
         if not glb_data.nodes:
-            print(f"[DEBUG_TRANSFORM] No nodes in glb_data, skipping")
+            logger.debug(f"[DEBUG_TRANSFORM] No nodes in glb_data, skipping")
             return
 
         if glb_data.skins:
-            print(f"[DEBUG_TRANSFORM] Model has {len(glb_data.skins)} skins, skipping node transform")
+            logger.debug(f"[DEBUG_TRANSFORM] Model has {len(glb_data.skins)} skins, skipping node transform")
             return
 
         scenes = glb_data.json_data.get('scenes', [])
@@ -67,13 +70,13 @@ class ModelInstance:
         if not root_indices:
             root_indices = list(range(len(glb_data.nodes)))
 
-        print(f"[DEBUG_TRANSFORM] scenes={len(scenes)} scene_index={scene_index} root_indices={root_indices}")
+        logger.debug(f"[DEBUG_TRANSFORM] scenes={len(scenes)} scene_index={scene_index} root_indices={root_indices}")
 
         mesh_nodes: List[Tuple[int, Mat4]] = []
         for idx in root_indices:
             self._collect_mesh_nodes(glb_data, idx, Mat4.identity(), mesh_nodes)
 
-        print(f"[DEBUG_TRANSFORM] Found {len(mesh_nodes)} mesh nodes")
+        logger.debug(f"[DEBUG_TRANSFORM] Found {len(mesh_nodes)} mesh nodes")
         if not mesh_nodes:
             return
 
@@ -81,7 +84,7 @@ class ModelInstance:
         self.transform.position = node_transform.get_translation()
         self.transform.rotation = node_transform.get_rotation()
         self.transform.scale = node_transform.get_scale()
-        print(f"[DEBUG_TRANSFORM] Applied: pos={self.transform.position} rot={self.transform.rotation} scale={self.transform.scale}")
+        logger.debug(f"[DEBUG_TRANSFORM] Applied: pos={self.transform.position} rot={self.transform.rotation} scale={self.transform.scale}")
 
     def _collect_mesh_nodes(self, glb_data: GLBData, node_index: int,
                             parent_transform: Mat4, result: List[Tuple[int, Mat4]]) -> None:
@@ -278,11 +281,11 @@ class ModelInstance:
         return True
     
     def cleanup_gl(self) -> None:
-        
         if self._renderer:
-            # TODO: IMPLEMENT - GLRenderer cleanup is not implemented
+            self._renderer.cleanup()
             self._renderer = None
         if self._skeleton_viz:
+            self._skeleton_viz.cleanup()
             self._skeleton_viz = None
         self._gl_initialized = False
     

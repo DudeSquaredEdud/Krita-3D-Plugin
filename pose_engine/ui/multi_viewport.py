@@ -206,7 +206,7 @@ class MultiViewport3D(QOpenGLWidget):
 
         try:
             model = self._scene.add_model_from_file(file_path, name)
-            print(f"[DEBUG_ADD] Loaded model: name={model.name} id={model.id} "
+            logger.debug(f"[DEBUG_ADD] Loaded model: name={model.name} id={model.id} "
                   f"mesh_data={model.mesh_data is not None} skeleton={model.skeleton is not None} "
                   f"pos={model.transform.position} scale={model.transform.scale}")
 
@@ -216,7 +216,7 @@ class MultiViewport3D(QOpenGLWidget):
                 self._init_model_gl_resources(model)
                 self.doneCurrent()
             else:
-                print(f"[DEBUG_ADD] GL not initialized yet, will init later")
+                logger.debug(f"[DEBUG_ADD] GL not initialized yet, will init later")
 
             self._frame_scene()
 
@@ -224,15 +224,47 @@ class MultiViewport3D(QOpenGLWidget):
             return model
 
         except Exception as e:
-            print(f"Error loading model: {e}")
+            logger.debug(f"Error loading model: {e}")
             import traceback
-            traceback.print_exc()
+            traceback.logger.debug_exc()
             return None
+        
+    def _cleanup_all_gl_resources(self) -> None:
+        for model_id in self._model_renderers.keys():
+            self._model_renderers[model_id].cleanup()
+        self._model_renderers.clear()
+        for model_id in self._model_skeleton_viz.keys():
+            self._model_skeleton_viz[model_id].cleanup()
+        self._model_skeleton_viz.clear()
+        if self._joint_renderer:
+            self._joint_renderer.cleanup()
+            self._joint_renderer = None
+        if self._gizmo:
+            self._gizmo.cleanup()
+            self._gizmo = None
+        if self._movement_gizmo:
+            self._movement_gizmo.cleanup()
+            self._movement_gizmo = None
+        if self._scale_gizmo:
+            self._scale_gizmo.cleanup()
+            self._scale_gizmo = None
+        if self._bounding_box_renderer:
+            self._bounding_box_renderer.cleanup()
+            self._bounding_box_renderer = None
+
+
+    def _cleanup_model_gl_resources(self, model_id: str) -> None:
+        if model_id in self._model_renderers:
+            self._model_renderers[model_id].cleanup()
+            del self._model_renderers[model_id]
+        if model_id in self._model_skeleton_viz:
+            self._model_skeleton_viz[model_id].cleanup()
+            del self._model_skeleton_viz[model_id]
 
     def remove_model(self, model_id: str) -> None:
         
         if model_id in self._model_renderers:
-            # TODO: IMPLEMENT - renderer GPU cleanup
+            self._cleanup_model_gl_resources(model_id)
             del self._model_renderers[model_id]
         if model_id in self._model_skeleton_viz:
             del self._model_skeleton_viz[model_id]
@@ -240,9 +272,10 @@ class MultiViewport3D(QOpenGLWidget):
         self._scene.remove_model(model_id)
         self.update()
 
+
     def reload_scene(self) -> None:
 
-        print(f"[Viewport] Reloading scene with {len(list(self._scene.get_all_models()))} models")
+        logger.debug(f"[Viewport] Reloading scene with {len(list(self._scene.get_all_models()))} models")
         
         self._model_renderers.clear()
         self._model_skeleton_viz.clear()
@@ -250,7 +283,7 @@ class MultiViewport3D(QOpenGLWidget):
         if self._gl_initialized:
             self.makeCurrent()
             for model in self._scene.get_all_models():
-                print(f"[Viewport] Initializing GL resources for model: {model.name}")
+                logger.debug(f"[Viewport] Initializing GL resources for model: {model.name}")
                 self._init_model_gl_resources(model)
             self.doneCurrent()
         
@@ -409,23 +442,23 @@ class MultiViewport3D(QOpenGLWidget):
 
         self._gizmo = RotationGizmo()
         if not self._gizmo.initialize():
-            print("Failed to initialize RotationGizmo")
+            logger.debug("Failed to initialize RotationGizmo")
 
         self._movement_gizmo = MovementGizmo()
         if not self._movement_gizmo.initialize():
-            print("Failed to initialize MovementGizmo")
+            logger.debug("Failed to initialize MovementGizmo")
 
         self._scale_gizmo = ScaleGizmo()
         if not self._scale_gizmo.initialize():
-            print("Failed to initialize ScaleGizmo")
+            logger.debug("Failed to initialize ScaleGizmo")
 
         self._joint_renderer = JointRenderer()
         if not self._joint_renderer.initialize():
-            print("Failed to initialize JointRenderer")
+            logger.debug("Failed to initialize JointRenderer")
 
         self._bounding_box_renderer = BoundingBoxRenderer()
         if not self._bounding_box_renderer.initialize():
-            print("Failed to initialize BoundingBoxRenderer")
+            logger.debug("Failed to initialize BoundingBoxRenderer")
 
 
         for model in self._scene.get_all_models():
@@ -436,45 +469,45 @@ class MultiViewport3D(QOpenGLWidget):
     def _init_model_gl_resources(self, model: ModelInstance) -> None:
 
         if model.id in self._model_renderers:
-            print(f"[DEBUG_INIT] SKIP _init_model_gl_resources for {model.name} - already in _model_renderers")
+            logger.debug(f"[DEBUG_INIT] SKIP _init_model_gl_resources for {model.name} - already in _model_renderers")
             return
 
         renderer = GLRenderer()
-        print(f"[DEBUG_INIT] Created GLRenderer id={id(renderer)} for model {model.name} ({model.id})")
+        logger.debug(f"[DEBUG_INIT] Created GLRenderer id={id(renderer)} for model {model.name} ({model.id})")
         if renderer.initialize():
             self._model_renderers[model.id] = renderer
             renderer.set_silhouette_mode(self._silhouette_mode)
-            print(f"[DEBUG_INIT] Renderer initialized, stored in _model_renderers[{model.id}] id={id(renderer)}")
+            logger.debug(f"[DEBUG_INIT] Renderer initialized, stored in _model_renderers[{model.id}] id={id(renderer)}")
         else:
-            print(f"[DEBUG_INIT] Failed to initialize renderer for model {model.name} ({model.id})")
+            logger.debug(f"[DEBUG_INIT] Failed to initialize renderer for model {model.name} ({model.id})")
             return
 
         stored_renderer = self._model_renderers[model.id]
-        print(f"[DEBUG_INIT] Verification: stored_renderer id={id(stored_renderer)} same={stored_renderer is renderer}")
+        logger.debug(f"[DEBUG_INIT] Verification: stored_renderer id={id(stored_renderer)} same={stored_renderer is renderer}")
 
-        print(f"[DEBUG_INIT] model={model.name} id={model.id} mesh_data={model.mesh_data is not None} "
+        logger.debug(f"[DEBUG_INIT] model={model.name} id={model.id} mesh_data={model.mesh_data is not None} "
               f"visible={model.visible} transform=({model.transform.position}, {model.transform.scale})")
         if model.mesh_data:
             has_sub = hasattr(model.mesh_data, 'sub_meshes') and model.mesh_data.sub_meshes
             has_pos = bool(model.mesh_data.positions) if hasattr(model.mesh_data, 'positions') else False
-            print(f"[DEBUG_INIT] has_sub_meshes={has_sub} has_positions={has_pos} "
+            logger.debug(f"[DEBUG_INIT] has_sub_meshes={has_sub} has_positions={has_pos} "
                   f"materials={len(model.mesh_data.materials) if model.mesh_data.materials else 0} "
                   f"bone_mapping={model.mesh_data.bone_mapping}")
             if has_sub:
                 for i, sm in enumerate(model.mesh_data.sub_meshes):
-                    print(f"[DEBUG_INIT] sub_mesh[{i}]: verts={len(sm.positions)} indices={len(sm.indices)} "
+                    logger.debug(f"[DEBUG_INIT] sub_mesh[{i}]: verts={len(sm.positions)} indices={len(sm.indices)} "
                           f"material_index={sm.material_index} has_skinning={sm.skinning_data is not None} "
                           f"has_texcoords={bool(sm.texcoords)}")
-                print(f"[DEBUG_INIT] About to call upload_mesh_with_materials on renderer id={id(renderer)}")
+                logger.debug(f"[DEBUG_INIT] About to call upload_mesh_with_materials on renderer id={id(renderer)}")
                 result = renderer.upload_mesh_with_materials(model.mesh_data)
-                print(f"[DEBUG_INIT] upload_mesh_with_materials result={result} renderer id={id(renderer)}")
-                print(f"[DEBUG_INIT] renderer._sub_mesh_buffers count={len(renderer._sub_mesh_buffers)} renderer id={id(renderer)}")
+                logger.debug(f"[DEBUG_INIT] upload_mesh_with_materials result={result} renderer id={id(renderer)}")
+                logger.debug(f"[DEBUG_INIT] renderer._sub_mesh_buffers count={len(renderer._sub_mesh_buffers)} renderer id={id(renderer)}")
                 for i, buf in enumerate(renderer._sub_mesh_buffers):
-                    print(f"[DEBUG_INIT] buffer[{i}]: vao={buf.vao} index_count={buf.index_count} "
+                    logger.debug(f"[DEBUG_INIT] buffer[{i}]: vao={buf.vao} index_count={buf.index_count} "
                           f"diffuse_color={buf.diffuse_color} alpha_mode={buf.alpha_mode} "
                           f"has_skinning={buf.has_skinning} has_texcoords={buf.has_texcoords}")
             elif has_pos:
-                print("[DEBUG_INIT]   Using upload_mesh (single mesh path)")
+                logger.debug("[DEBUG_INIT]   Using upload_mesh (single mesh path)")
                 renderer.upload_mesh(
                     model.mesh_data.positions,
                     model.mesh_data.normals,
@@ -482,9 +515,9 @@ class MultiViewport3D(QOpenGLWidget):
                     model.mesh_data.skinning_data
                 )
             else:
-                print("[DEBUG_INIT]   mesh_data exists but no sub_meshes and no positions!")
+                logger.debug("[DEBUG_INIT]   mesh_data exists but no sub_meshes and no positions!")
         else:
-            print("[DEBUG_INIT]   model.mesh_data is None!")
+            logger.debug("[DEBUG_INIT]   model.mesh_data is None!")
 
         viz = SkeletonVisualizer()
         if viz.initialize():
@@ -688,10 +721,10 @@ class MultiViewport3D(QOpenGLWidget):
         return (crop_x, crop_y, crop_w, crop_h)
 
     def render_to_image(self, width: int, height: int) -> QImage:
-        print(f"[RENDER] Starting render_to_image({width}, {height})")
+        logger.debug(f"[RENDER] Starting render_to_image({width}, {height})")
         
         if not self._gl_initialized:
-            print("[RENDER] ERROR: GL not initialized")
+            logger.debug("[RENDER] ERROR: GL not initialized")
             return QImage()
         
         orig_show_skeleton = self._show_skeleton
@@ -704,11 +737,11 @@ class MultiViewport3D(QOpenGLWidget):
         self._show_gizmo = False
 
         try:
-            print("[RENDER] Making widget context current...")
+            logger.debug("[RENDER] Making widget context current...")
             self.makeCurrent()
             
             orig_viewport = glGetIntegerv(GL_VIEWPORT)
-            print(f"[RENDER] Original viewport: {orig_viewport}")
+            logger.debug(f"[RENDER] Original viewport: {orig_viewport}")
             
             # Create FBO in the same context as the widget (where GL objects were created)
             fbo_format = QOpenGLFramebufferObjectFormat()
@@ -717,36 +750,36 @@ class MultiViewport3D(QOpenGLWidget):
             
             fbo = QOpenGLFramebufferObject(width, height, fbo_format)
             if not fbo.isValid():
-                print("[RENDER] ERROR: Framebuffer object is not valid")
+                logger.debug("[RENDER] ERROR: Framebuffer object is not valid")
                 return QImage()
                 
-            print(f"[RENDER] Framebuffer created successfully: {fbo.width()}x{fbo.height()}")
+            logger.debug(f"[RENDER] Framebuffer created successfully: {fbo.width()}x{fbo.height()}")
             
             if not fbo.bind():
-                print("[RENDER] ERROR: Failed to bind framebuffer")
+                logger.debug("[RENDER] ERROR: Failed to bind framebuffer")
                 return QImage()
                 
             glViewport(0, 0, width, height)
-            print(f"[RENDER] Viewport set to {width}x{height}")
+            logger.debug(f"[RENDER] Viewport set to {width}x{height}")
             
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            print("[RENDER] Buffers cleared")
+            logger.debug("[RENDER] Buffers cleared")
             
             aspect = width / max(1, height)
             view = self._camera.get_view_matrix()
             proj = self._camera.get_projection_matrix(aspect)
-            print(f"[RENDER] Matrices calculated (aspect: {aspect})")
+            logger.debug(f"[RENDER] Matrices calculated (aspect: {aspect})")
 
             visible_models = [m for m in self._scene.get_all_models() if m.visible]
-            print(f"[RENDER] Found {len(visible_models)} visible models out of {len(self._scene.get_all_models())}")
+            logger.debug(f"[RENDER] Found {len(visible_models)} visible models out of {len(self._scene.get_all_models())}")
 
             for i, model in enumerate(visible_models):
-                print(f"[RENDER] Rendering model {i+1}/{len(visible_models)}: {model.name} (id: {model.id})")
+                logger.debug(f"[RENDER] Rendering model {i+1}/{len(visible_models)}: {model.name} (id: {model.id})")
 
                 model_matrix = model.transform.to_matrix()
     
                 if self._show_mesh and model.id in self._model_renderers and model.mesh_data:
-                    print(f"[RENDER] - Rendering mesh for {model.name}")
+                    logger.debug(f"[RENDER] - Rendering mesh for {model.name}")
                     renderer = self._model_renderers[model.id]
                     camera_pos = self._camera.get_position()
                     renderer.render(model.skeleton, view, proj, model_matrix, camera_position=camera_pos)
@@ -755,12 +788,12 @@ class MultiViewport3D(QOpenGLWidget):
                     if not self._show_mesh: reasons.append("mesh disabled")
                     if model.id not in self._model_renderers: reasons.append("no renderer")
                     if not model.mesh_data: reasons.append("no mesh data")
-                    print(f"[RENDER]   - Skipping mesh: {', '.join(reasons)}")
+                    logger.debug(f"[RENDER]   - Skipping mesh: {', '.join(reasons)}")
 
                 if self._show_skeleton and model.id in self._model_skeleton_viz and model.skeleton:
                     # Disable depth test so skeleton shows through the model (x-ray mode)
                     glDisable(GL_DEPTH_TEST)
-                    print(f"[RENDER] - Rendering skeleton for {model.name}")
+                    logger.debug(f"[RENDER] - Rendering skeleton for {model.name}")
                     viz = self._model_skeleton_viz[model.id]
                     viz.update_skeleton(model.skeleton)
                     viz.render(view, proj, (1.0, 0.5, 0.0), model_matrix=model_matrix)
@@ -770,48 +803,48 @@ class MultiViewport3D(QOpenGLWidget):
                     if not self._show_skeleton: reasons.append("skeleton disabled")
                     if model.id not in self._model_skeleton_viz: reasons.append("no viz")
                     if not model.skeleton: reasons.append("no skeleton")
-                    print(f"[RENDER]   - Skipping skeleton: {', '.join(reasons)}")
+                    logger.debug(f"[RENDER]   - Skipping skeleton: {', '.join(reasons)}")
 
             if self._show_joints and self._joint_renderer:
-                print("[RENDER] Rendering joints for all models")
+                logger.debug("[RENDER] Rendering joints for all models")
                 self._render_all_joints(view, proj)
             else:
                 reasons = []
                 if not self._show_joints: reasons.append("joints disabled")
                 if not self._joint_renderer: reasons.append("no joint renderer")
-                print(f"[RENDER] Skipping joints: {', '.join(reasons)}")
+                logger.debug(f"[RENDER] Skipping joints: {', '.join(reasons)}")
 
             if self._show_gizmo:
                 model, bone = self._scene.get_selected_bone()
                 if model and bone:
-                    print(f"[RENDER] Rendering gizmo for {model.name}/{bone.name}")
+                    logger.debug(f"[RENDER] Rendering gizmo for {model.name}/{bone.name}")
                     self._render_gizmo(view, proj)
                 else:
-                    print("[RENDER] Skipping gizmo: no selected bone")
+                    logger.debug("[RENDER] Skipping gizmo: no selected bone")
             else:
-                print("[RENDER] Skipping gizmo: disabled")
+                logger.debug("[RENDER] Skipping gizmo: disabled")
             
-            print("[RENDER] Getting rendered image from framebuffer...")
+            logger.debug("[RENDER] Getting rendered image from framebuffer...")
             image = fbo.toImage()
             
             fbo.release()
     
             glViewport(orig_viewport[0], orig_viewport[1], orig_viewport[2], orig_viewport[3])
-            print(f"[RENDER] Restored viewport to {orig_viewport}")
+            logger.debug(f"[RENDER] Restored viewport to {orig_viewport}")
             
-            print(f"[RENDER] Success! Image: {image.width()}x{image.height()}, null: {image.isNull()}")
+            logger.debug(f"[RENDER] Success! Image: {image.width()}x{image.height()}, null: {image.isNull()}")
             return image
             
         except Exception as e:
-            print(f"[RENDER] ERROR: Exception during render: {e}")
+            logger.debug(f"[RENDER] ERROR: Exception during render: {e}")
             import traceback
-            traceback.print_exc()
+            traceback.logger.debug_exc()
             
             try:
                 if 'orig_viewport' in locals():
                     glViewport(orig_viewport[0], orig_viewport[1], orig_viewport[2], orig_viewport[3])
             except Exception as cleanup_e:
-                print(f"[RENDER] ERROR: Failed to restore viewport: {cleanup_e}")
+                logger.debug(f"[RENDER] ERROR: Failed to restore viewport: {cleanup_e}")
             return QImage()
         finally:
             # Restore original visibility states
@@ -1706,15 +1739,15 @@ class MultiViewport3D(QOpenGLWidget):
 
     def load_project_bookmarks(self, bookmarks: dict) -> None:
 
-        print(f"[Viewport] Loading {len(bookmarks)} project bookmarks")
+        logger.debug(f"[Viewport] Loading {len(bookmarks)} project bookmarks")
         for slot_str, bookmark_data in bookmarks.items():
             try:
                 slot = int(slot_str)
                 if 1 <= slot <= 9:
                     self._camera_bookmarks[slot] = bookmark_data
-                    print(f"[Viewport] Loaded bookmark {slot}")
+                    logger.debug(f"[Viewport] Loaded bookmark {slot}")
             except (ValueError, KeyError) as e:
-                print(f"[Viewport] Error loading bookmark {slot_str}: {e}")
+                logger.debug(f"[Viewport] Error loading bookmark {slot_str}: {e}")
         self.update()
 
     def get_project_bookmarks(self) -> dict:
@@ -1794,3 +1827,6 @@ class MultiViewport3D(QOpenGLWidget):
     def recall_bookmark(self, index: int) -> None:
 
         self._recall_bookmark(index)
+        
+    def __del__(self):
+        self._cleanup_all_gl_resources()

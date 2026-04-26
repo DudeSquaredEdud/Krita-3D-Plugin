@@ -2,6 +2,10 @@
 
 import math
 from typing import Tuple, Optional
+
+from .logger import get_logger
+logger = get_logger(__name__)
+
 from .vec3 import Vec3
 from .quat import Quat
 
@@ -95,6 +99,7 @@ class Mat4:
                r02 * (r10*r21 - r11*r20))
         
         if abs(det) < 1e-10:
+            logger.warning("[Mat4] Inverse returns identity")
             return Mat4.identity()
         
         inv_det = 1.0 / det

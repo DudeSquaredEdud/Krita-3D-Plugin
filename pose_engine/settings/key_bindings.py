@@ -1,6 +1,6 @@
 
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass
 from typing import Dict, Optional, List, Tuple, Any
 from PyQt5.QtCore import Qt
 
@@ -337,6 +337,6 @@ def validate_key_binding(key: int, modifiers: int) -> Tuple[bool, Optional[str]]
     reserved_keys = [
     ]
     if key in reserved_keys:
-        return False, f"Key is reserved by the system"
+        return False, "Key is reserved by the system"
     
     return True, None

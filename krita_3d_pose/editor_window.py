@@ -68,7 +68,7 @@ class PoseEditorWindow(QMainWindow):
         self._setup_shortcuts()
 
         self._update_timer = QTimer(self)
-        self._update_timer.timeout.connect(self._on_update)
+        # self._update_timer.timeout.connect(self._on_update)
         self._update_timer.start(16) # ~60 FPS
 
         self._sync_timer = QTimer()
@@ -117,7 +117,7 @@ class PoseEditorWindow(QMainWindow):
             except Exception as e:
                 logger.debug(f"[Editor] Failed to create scene tab: {e}")
                 import traceback
-                traceback.print_exc()
+                traceback.logger.debug_exc()
         else:
             logger.debug(f"[Editor] Skipping scene tab - SceneTab: {SceneTab is not None}, ProjectScene: {ProjectScene is not None}")
 
@@ -468,12 +468,12 @@ class PoseEditorWindow(QMainWindow):
     
     def _on_camera_mode_changed(self, mode: str) -> None:
         
-        print(f"[DEBUG] _on_camera_mode_changed called with mode: {mode}")
-        print(f"[DEBUG] _camera_tab is: {self._camera_tab}")
+        logger.debug(f"[DEBUG] _on_camera_mode_changed called with mode: {mode}")
+        logger.debug(f"[DEBUG] _camera_tab is: {self._camera_tab}")
         if self._camera_tab:
-            print(f"[DEBUG] Calling sync_camera_mode_buttons with mode: {mode}")
+            logger.debug(f"[DEBUG] Calling sync_camera_mode_buttons with mode: {mode}")
             self._camera_tab.sync_camera_mode_buttons(mode)
-            print("[DEBUG] sync_camera_mode_buttons completed")
+            logger.debug("[DEBUG] sync_camera_mode_buttons completed")
     
     # Tree rebuilds (delegated to tabs)
 
@@ -663,10 +663,6 @@ class PoseEditorWindow(QMainWindow):
             self._viewport.set_settings(self._settings)
 
     #  Lifecycle 
-
-    def _on_update(self) -> None:
-        """This is empty because there's nothing there"""
-        pass
 
     def closeEvent(self, event) -> None:
         event.ignore()
