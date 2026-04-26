@@ -10,6 +10,11 @@ A plugin for Krita that enables 3D character posing with skeletal animation supp
 
 Admittedly, this was made because I have no idea how to draw in perspective and I needed a tool to show me how. And I can't have Blender and Krita open at the same time. All the best to the dev of the blender layer plugin!
 
+## AI Disclosure
+
+Due to a troubled history with OpenGL, I had gotten AI assistance on the render pipeline. 
+All new code written from April 26, 2026 onward is by me.
+
 ## Requirements
 
 ### Required

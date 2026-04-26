@@ -437,7 +437,7 @@ class MultiViewport3D(QOpenGLWidget):
                           f"diffuse_color={buf.diffuse_color} alpha_mode={buf.alpha_mode} "
                           f"has_skinning={buf.has_skinning} has_texcoords={buf.has_texcoords}")
             elif has_pos:
-                print(f"[DEBUG_INIT]   Using upload_mesh (single mesh path)")
+                print("[DEBUG_INIT]   Using upload_mesh (single mesh path)")
                 renderer.upload_mesh(
                     model.mesh_data.positions,
                     model.mesh_data.normals,
@@ -445,9 +445,9 @@ class MultiViewport3D(QOpenGLWidget):
                     model.mesh_data.skinning_data
                 )
             else:
-                print(f"[DEBUG_INIT]   mesh_data exists but no sub_meshes and no positions!")
+                print("[DEBUG_INIT]   mesh_data exists but no sub_meshes and no positions!")
         else:
-            print(f"[DEBUG_INIT]   model.mesh_data is None!")
+            print("[DEBUG_INIT]   model.mesh_data is None!")
 
         viz = SkeletonVisualizer()
         if viz.initialize():
@@ -473,23 +473,10 @@ class MultiViewport3D(QOpenGLWidget):
         if not hasattr(self, '_debug_frame_count'):
             self._debug_frame_count = 0
         self._debug_frame_count += 1
-        _debug_this_frame = (self._debug_frame_count <= 5)
 
         for model in self._scene.get_all_models():
-            if not model.visible:
-                if _debug_this_frame:
-                    print(f"[DEBUG_PAINT] model={model.name} id={model.id} SKIPPED (not visible)")
-                continue
 
             model_matrix = model.transform.to_matrix()
-
-            if _debug_this_frame:
-                has_renderer = model.id in self._model_renderers
-                has_mesh = model.mesh_data is not None
-                print(f"[DEBUG_PAINT] model={model.name} id={model.id} "
-                      f"show_mesh={self._show_mesh} has_renderer={has_renderer} has_mesh={has_mesh} "
-                      f"pos={model.transform.position} scale={model.transform.scale} "
-                      f"skeleton={model.skeleton is not None}")
 
             if self._show_mesh and model.id in self._model_renderers and model.mesh_data:
                 renderer = self._model_renderers[model.id]

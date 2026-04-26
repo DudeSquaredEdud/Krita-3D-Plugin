@@ -76,6 +76,7 @@ def main():
     parser = argparse.ArgumentParser(description="Install Krita 3D Pose Plugin")
     parser.add_argument("--clean", action="store_true", help="Force clean old dependencies before installing")
     parser.add_argument("--force-deps", action="store_true", help="Force reinstall dependencies even if already present")
+    parser.add_argument("--solo", action="store_true", help="Skip installation of dependencies")
     args = parser.parse_args()
     
     project_dir = os.path.dirname(os.path.abspath(__file__))
@@ -125,13 +126,12 @@ def main():
         print("Done! Restart Krita.")
         return
 
-    
-    
-    
-    
-    
-    
-    
+    if args.solo:
+        print("Dependencies skipped!")
+        print("Done! Restart Krita.")
+        return
+        
+
     
 
     system = platform.system()

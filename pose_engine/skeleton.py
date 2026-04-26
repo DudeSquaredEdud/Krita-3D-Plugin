@@ -95,6 +95,18 @@ class Skeleton:
             return True
         return False
     
+    def set_root_bone_position(self, position: Vec3) -> bool:
+        root_bones = self._root_bones
+        if root_bones[0] is not None:
+            for root_bone in root_bones:
+                if root_bone is not None:
+                    root_bone.set_pose_position(position)
+                    return True
+        else:
+            self._bones[0].set_pose_position(position)
+        return False
+    
+    
     # Utility Methods
     
     def get_bone_chain(self, from_bone: str, to_ancestor: str) -> List[Bone]:

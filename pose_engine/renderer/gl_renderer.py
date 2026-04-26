@@ -614,26 +614,27 @@ class GLRenderer:
 
         GLRenderer._debug_render_count += 1
         _dbg = GLRenderer._debug_render_count <= 5
+        _dbg_debug_enabled = False
 
-        if _dbg:
+        if _dbg and _dbg_debug_enabled:
             print(f"[DEBUG_RENDER] sub_mesh_buffers={len(self._sub_mesh_buffers)} "
                   f"mesh_buffers={self._mesh_buffers is not None} "
                   f"has_skeleton={skeleton is not None}")
 
         if self._sub_mesh_buffers:
-            if _dbg:
+            if _dbg and _dbg_debug_enabled:
                 for i, buf in enumerate(self._sub_mesh_buffers):
                     print(f"[DEBUG_RENDER] sub[{i}]: vao={buf.vao} index_count={buf.index_count} "
                           f"diffuse_color={buf.diffuse_color} alpha_mode={buf.alpha_mode} "
                           f"has_skinning={buf.has_skinning} texture_id={buf.texture_id}")
             self._render_sub_meshes(skeleton, view_matrix, projection_matrix, model_matrix, camera_position)
         elif self._mesh_buffers is not None:
-            if _dbg:
+            if _dbg and _dbg_debug_enabled:
                 buf = self._mesh_buffers
                 print(f"[DEBUG_RENDER] single: vao={buf.vao} index_count={buf.index_count} "
                       f"diffuse_color={buf.diffuse_color} has_skinning={buf.has_skinning}")
             self._render_single_mesh(self._mesh_buffers, skeleton, view_matrix, projection_matrix, model_matrix, camera_position)
-        elif _dbg:
+        elif _dbg and _dbg_debug_enabled:
             print(f"[DEBUG_RENDER] NO buffers to render! sub_mesh_buffers=[] mesh_buffers=None")
 
     def _set_distance_gradient_uniforms(self, camera_position: Optional[Vec3]) -> None:

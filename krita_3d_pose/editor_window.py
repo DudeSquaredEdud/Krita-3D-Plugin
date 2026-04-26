@@ -414,6 +414,10 @@ class PoseEditorWindow(QMainWindow):
             # Push current state to undo stack for future undo
             self._undo_stack.push_state(model.skeleton, "Pose Change")
 
+        if self._project_scene:
+            self._project_scene.mark_changed()
+
+
     def keyPressEvent(self, event) -> None:
         """Override key press to prevent Ctrl+W from closing the window."""
         if event.key() == Qt.Key_W and event.modifiers() & Qt.ControlModifier:

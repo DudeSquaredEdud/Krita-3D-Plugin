@@ -1,3 +1,4 @@
+import copy
 import json
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
@@ -41,9 +42,9 @@ class BonePose:
             scale=bone.pose_transform.scale
         )
     
-    def apply_to_bone(self, bone: Bone) -> None:
+    def apply_to_bone(self, bone: Bone, no_pos = False) -> None:
         bone.set_pose_rotation(self.rotation)
-        bone.set_pose_position(self.position)
+        if not no_pos: bone.set_pose_position(self.position)
         bone.set_pose_scale(self.scale)
 
 
@@ -82,11 +83,13 @@ class PoseSnapshot:
         return cls(bones=bones, name=name, timestamp=time.time())
     
     def apply_to_skeleton(self, skeleton: Skeleton) -> None:
-        for bone in skeleton:
-            if bone.name in self.bones:
+        for i, bone in enumerate(skeleton): 
+            if i == 0: # preserve initial position
+                if bone.name in self.bones:
+                    self.bones[bone.name].apply_to_bone(bone, True)
+
+            elif bone.name in self.bones:
                 self.bones[bone.name].apply_to_bone(bone)
-        
-        skeleton.update_all_transforms()
     
     def get_bone_pose(self, bone_name: str) -> Optional[BonePose]:
         return self.bones.get(bone_name)
