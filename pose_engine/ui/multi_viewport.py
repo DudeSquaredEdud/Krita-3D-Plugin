@@ -553,7 +553,9 @@ class MultiViewport3D(QOpenGLWidget):
                 camera_pos = self._camera.get_position()
                 renderer.render(model.skeleton, view, proj, model_matrix, camera_position=camera_pos)
 
-            if self._show_skeleton and model.id in self._model_skeleton_viz and model.skeleton:
+            is_selected = model.id == self._scene.get_selected_model_id()
+            if self._show_skeleton and is_selected and model.id in self._model_skeleton_viz and model.skeleton:
+
                 # Disable depth test so skeleton shows through the model (x-ray mode)
                 glDisable(GL_DEPTH_TEST)
                 viz = self._model_skeleton_viz[model.id]
@@ -601,9 +603,13 @@ class MultiViewport3D(QOpenGLWidget):
     def _render_all_joints(self, view: Mat4, proj: Mat4) -> None:
         selected_model, selected_bone = self._scene.get_selected_bone()
 
+        selected_model_id = self._scene.get_selected_model_id()
         for model in self._scene.get_all_models():
             if not model.visible or not model.skeleton:
                 continue
+            if model.id != selected_model_id:
+                continue
+
 
             model_matrix = model.transform.to_matrix()
             joint_scale = self._get_joint_scale()
@@ -1088,9 +1094,13 @@ class MultiViewport3D(QOpenGLWidget):
 
         viewport = (0, 0, self.width(), self.height())
 
+        selected_model_id = self._scene.get_selected_model_id()
         for model in self._scene.get_all_models():
             if not model.visible or not model.skeleton:
                 continue
+            if model.id != selected_model_id:
+                continue
+
 
             joint_scale = self._get_joint_scale()
 
