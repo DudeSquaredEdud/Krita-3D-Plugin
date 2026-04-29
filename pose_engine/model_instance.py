@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, TYPE_CHECKING
 from .skeleton import Skeleton
 from .transform import Transform
 from .vec3 import Vec3
@@ -9,6 +9,7 @@ from .bone import Bone
 from .gltf.builder import MeshData
 from .gltf.loader import GLBLoader, GLBData
 from .gltf.builder import build_skeleton_from_gltf, build_mesh_from_gltf
+from .bone_extent import BoneExtentTracker
 
 from .logger import get_logger
 logger = get_logger(__name__)
@@ -35,6 +36,11 @@ class ModelInstance:
         self._renderer = None
         self._skeleton_viz = None
         self._gl_initialized: bool = False
+        
+        self._cached_bbox: Optional[Tuple[Vec3, Vec3]] = None
+
+        self._bone_extent_tracker: Optional['BoneExtentTracker'] = None
+        self._bbox_dirty: bool = True
     
     
     def load_from_file(self, file_path: str) -> None:
@@ -51,9 +57,11 @@ class ModelInstance:
         if self.skeleton:
             self.skeleton.update_all_transforms()
 
+        self._calculate_bone_extents()
+
     def _apply_gltf_node_transform(self, glb_data: GLBData) -> None:
         if not glb_data.nodes:
-            logger.debug(f"[DEBUG_TRANSFORM] No nodes in glb_data, skipping")
+            logger.debug("[DEBUG_TRANSFORM] No nodes in glb_data, skipping")
             return
 
         if glb_data.skins:
@@ -134,6 +142,40 @@ class ModelInstance:
     def get_parent_bone(self) -> Optional[str]:
         return self._parent_bone
     
+    def _calculate_bone_extents(self) -> None:
+        if not self.mesh_data or not self.skeleton:
+            return
+        
+        self._bone_extent_tracker = BoneExtentTracker()
+        
+        bone_mapping = self.mesh_data.bone_mapping if self.mesh_data else {}
+        
+        self._bone_extent_tracker.calculate_from_mesh(
+            self.mesh_data,
+            self.skeleton,
+            bone_mapping
+        )
+        
+        self._bbox_dirty = True
+        logger.debug(f"[ModelInstance] Calculated bone extents for {self.name}")
+
+    def get_bounding_box(self) -> Tuple[Vec3, Vec3]:
+        if self._bone_extent_tracker and self._bone_extent_tracker.has_data:
+            return self._bone_extent_tracker.get_bounding_box(
+                self.skeleton,
+                self.transform
+            )
+        
+        return Vec3(-0.5, -0.5, -0.5), Vec3(0.5, 0.5, 0.5)
+    
+    def invalidate_bounding_box(self) -> None:
+        self._bbox_dirty = True
+    
+    def get_local_bounding_box(self) -> Tuple[Vec3, Vec3]:
+        if self._bone_extent_tracker and self._bone_extent_tracker.has_data:
+            return self._bone_extent_tracker.get_bounding_box(self.skeleton)
+        return Vec3(-0.5, -0.5, -0.5), Vec3(0.5, 0.5, 0.5)
+    
     def get_world_transform(self) -> Transform:
         if self._parent is None:
             return self.transform
@@ -182,6 +224,7 @@ class ModelInstance:
     def update_transforms(self) -> None:
         if self.skeleton:
             self.skeleton.update_all_transforms()
+        self._bbox_dirty = True
     
     # Copying
     
@@ -288,6 +331,44 @@ class ModelInstance:
             self._skeleton_viz.cleanup()
             self._skeleton_viz = None
         self._gl_initialized = False
+        
+    def _calculate_bone_extents(self) -> None:
+        """Calculate bone extents from loaded mesh data."""
+        if not self.mesh_data or not self.skeleton:
+            return
+        
+        try:
+            self._bone_extent_tracker = BoneExtentTracker()
+            bone_mapping = self.mesh_data.bone_mapping if self.mesh_data else {}
+            
+            self._bone_extent_tracker.calculate_from_mesh(
+                self.mesh_data,
+                self.skeleton,
+                bone_mapping
+            )
+            self._bbox_dirty = True
+            logger.debug(f"[ModelInstance] Calculated bone extents for {self.name}")
+        except Exception as e:
+            logger.error(f"[ModelInstance] Failed to calculate bone extents: {e}")
+
+    def get_bounding_box(self) -> Tuple[Vec3, Vec3]:
+        """Get the current bounding box of this model."""
+        if self._bone_extent_tracker and self._bone_extent_tracker.has_data:
+            return self._bone_extent_tracker.get_bounding_box(
+                self.skeleton,
+                self.transform
+            )
+        return Vec3(-0.5, -0.5, -0.5), Vec3(0.5, 0.5, 0.5)
+
+    def get_local_bounding_box(self) -> Tuple[Vec3, Vec3]:
+        """Get bounding box in local space (without model transform)."""
+        if self._bone_extent_tracker and self._bone_extent_tracker.has_data:
+            return self._bone_extent_tracker.get_bounding_box(self.skeleton)
+        return Vec3(-0.5, -0.5, -0.5), Vec3(0.5, 0.5, 0.5)
+
+    def invalidate_bounding_box(self) -> None:
+        """Mark bounding box as needing recalculation."""
+        self._bbox_dirty = True
     
     # Representation
     

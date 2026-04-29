@@ -540,10 +540,6 @@ class MultiViewport3D(QOpenGLWidget):
         view = self._camera.get_view_matrix()
         proj = self._camera.get_projection_matrix(aspect)
 
-        if not hasattr(self, '_debug_frame_count'):
-            self._debug_frame_count = 0
-        self._debug_frame_count += 1
-
         for model in self._scene.get_all_models():
 
             model_matrix = model.transform.to_matrix()
@@ -598,8 +594,7 @@ class MultiViewport3D(QOpenGLWidget):
                         f"doc_size={self._bounding_box_doc_size}, "
                         f"renderer={self._bounding_box_renderer is not None}"
                     )
-
-
+        
     def _render_all_joints(self, view: Mat4, proj: Mat4) -> None:
         selected_model, selected_bone = self._scene.get_selected_bone()
 
@@ -607,9 +602,9 @@ class MultiViewport3D(QOpenGLWidget):
         for model in self._scene.get_all_models():
             if not model.visible or not model.skeleton:
                 continue
-            if model.id != selected_model_id:
+            if selected_model_id is not None and model.id != selected_model_id:
                 continue
-
+        
 
             model_matrix = model.transform.to_matrix()
             joint_scale = self._get_joint_scale()
@@ -895,7 +890,7 @@ class MultiViewport3D(QOpenGLWidget):
                 cur_bone = self._scene._selected_bone_name
                 if cur_model == prev_model and cur_bone == prev_bone:
                     self._scene.deselect_bone()
-                    self._gizmo_hover_axis = None
+                self._gizmo_hover_axis = None
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         
@@ -1081,8 +1076,24 @@ class MultiViewport3D(QOpenGLWidget):
             if delta.x != 0 or delta.y != 0 or delta.z != 0:
                 self._camera.move_target(delta)
 
+    def _point_to_segment_dist(self, px: float, py: float, ax: float, ay: float, bx: float, by: float) -> float:
+        abx = bx - ax
+        aby = by - ay
+        apx = px - ax
+        apy = py - ay
+        ab_sq = abx * abx + aby * aby
+        if ab_sq < 1e-10:
+            return math.sqrt(apx * apx + apy * apy)
+        t = (apx * abx + apy * aby) / ab_sq
+        t = max(0.0, min(1.0, t))
+        cx = ax + t * abx
+        cy = ay + t * aby
+        dx = px - cx
+        dy = py - cy
+        return math.sqrt(dx * dx + dy * dy)
+
     def _pick_joint(self, mouse_pos) -> None:
-        
+
         best_model_id = None
         best_bone_name = None
         best_dist = float('inf')
@@ -1095,34 +1106,53 @@ class MultiViewport3D(QOpenGLWidget):
         viewport = (0, 0, self.width(), self.height())
 
         selected_model_id = self._scene.get_selected_model_id()
+        mx = mouse_pos.x()
+        my = mouse_pos.y()
+
         for model in self._scene.get_all_models():
             if not model.visible or not model.skeleton:
                 continue
-            if model.id != selected_model_id:
-                continue
-
 
             joint_scale = self._get_joint_scale()
+            model_matrix = model.transform.to_matrix()
 
+            screen_positions: Dict[str, Tuple[float, float]] = {}
             for bone in model.skeleton:
                 if not bone.visible:
                     continue
-    
-                world_pos = bone.get_world_position()
-    
-                screen_x, screen_y = self._project_to_screen(world_pos, view_proj, viewport)
+                bone_pos = bone.get_world_position()
+                world_pos = model_matrix.transform_point(bone_pos)
+                sx, sy = self._project_to_screen(world_pos, view_proj, viewport)
+                screen_positions[bone.name] = (sx, sy)
 
-                dx = mouse_pos.x() - screen_x
-                dy = mouse_pos.y() - screen_y
+                dx = mx - sx
+                dy = my - sy
                 dist = math.sqrt(dx * dx + dy * dy)
-
-                radius = joint_scale * 50
-                if dist < radius and dist < best_dist:
+                joint_radius = joint_scale * 50
+                if dist < joint_radius and dist < best_dist:
                     best_dist = dist
                     best_model_id = model.id
                     best_bone_name = bone.name
 
+            segment_threshold = joint_scale * 30
+            for bone in model.skeleton:
+                if not bone.visible or bone.parent is None or not bone.parent.visible:
+                    continue
+                if bone.parent.name not in screen_positions or bone.name not in screen_positions:
+                    continue
+                parent_sx, parent_sy = screen_positions[bone.parent.name]
+                child_sx, child_sy = screen_positions[bone.name]
+                seg_dist = self._point_to_segment_dist(mx, my, parent_sx, parent_sy, child_sx, child_sy)
+                if seg_dist < segment_threshold and seg_dist < best_dist:
+                    best_dist = seg_dist
+                    best_model_id = model.id
+                    best_bone_name = bone.parent.name
+
         if best_model_id and best_bone_name:
+            if best_model_id != selected_model_id:
+                self._scene.select_model(best_model_id)
+                self.model_selected.emit(best_model_id)
+                self.model_selection_changed.emit(best_model_id)
             self.select_bone(best_model_id, best_bone_name)
 
     def _project_to_screen(

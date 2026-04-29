@@ -8,6 +8,8 @@ from .scale_gizmo import ScaleGizmo
 
 from .bounding_box_renderer import BoundingBoxRenderer
 
+from .model_bbox_renderer import ModelBBoxRenderer
+
 
 __all__ = [
     'GLRenderer',
@@ -18,4 +20,5 @@ __all__ = [
     'MovementGizmo',
     'ScaleGizmo',
     'BoundingBoxRenderer',
+    'ModelBBoxRenderer',
 ]

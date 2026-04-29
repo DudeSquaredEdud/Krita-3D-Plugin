@@ -139,6 +139,9 @@ class Mat4:
         return Vec3(sx, sy, sz)
     
     def to_list(self) -> list:
+        return self.m
+
+    def to_list_copy(self) -> list:
         return self.m.copy()
     
     def to_tuple(self) -> Tuple[float, ...]:

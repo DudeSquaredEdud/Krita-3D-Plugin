@@ -154,31 +154,33 @@ class Scene:
         has_content = False
         
         for model in self.get_all_models():
-            if not model.visible or model.skeleton is None:
+            if not model.visible:
                 continue
             
-            for bone in model.skeleton:
-                world_pos = bone.get_world_position()
-                # Transform by model's world transform
-                model_world = model.get_world_transform()
-                final_pos = model_world.rotation.rotate_vector(world_pos) + model_world.position
-                
-                min_pt = Vec3(
-                    min(min_pt.x, final_pos.x),
-                    min(min_pt.y, final_pos.y),
-                    min(min_pt.z, final_pos.z)
-                )
-                max_pt = Vec3(
-                    max(max_pt.x, final_pos.x),
-                    max(max_pt.y, final_pos.y),
-                    max(max_pt.z, final_pos.z)
-                )
-                has_content = True
+            model_min, model_max = model.get_bounding_box()
+            
+            min_pt = Vec3(
+                min(min_pt.x, model_min.x),
+                min(min_pt.y, model_min.y),
+                min(min_pt.z, model_min.z)
+            )
+            max_pt = Vec3(
+                max(max_pt.x, model_max.x),
+                max(max_pt.y, model_max.y),
+                max(max_pt.z, model_max.z)
+            )
+            has_content = True
         
         if not has_content:
             return Vec3(-1, -1, -1), Vec3(1, 1, 1)
         
         return min_pt, max_pt
+
+    def get_model_bounding_box(self, model_id: str) -> Optional[Tuple[Vec3, Vec3]]:
+        model = self._models.get(model_id)
+        if model:
+            return model.get_bounding_box()
+        return None
     
     def get_center(self) -> Vec3:
         min_pt, max_pt = self.get_bounding_box()
