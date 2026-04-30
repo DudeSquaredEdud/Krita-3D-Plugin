@@ -11,6 +11,7 @@ DEFAULT_KEYBOARD_SHORTCUTS = {
     'toggle_skeleton': (Qt.Key_K, Qt.NoModifier),
     'toggle_joints': (Qt.Key_J, Qt.NoModifier),
     'toggle_gizmo': (Qt.Key_H, Qt.NoModifier),
+    'toggle_grid': (Qt.Key_P, Qt.NoModifier),
 
     'toggle_gizmo_mode': (Qt.Key_G, Qt.NoModifier),
     'gizmo_rotate': (Qt.Key_V, Qt.NoModifier),
@@ -72,6 +73,7 @@ KEYBOARD_ACTION_NAMES = {
 'toggle_skeleton': 'Toggle Skeleton',
 'toggle_joints': 'Toggle Joints',
 'toggle_gizmo': 'Toggle Gizmo',
+'toggle_grid': 'Toggle Grid',
 'toggle_gizmo_mode': 'Cycle Gizmo Mode',
 'gizmo_rotate': 'Gizmo: Rotate',
 'gizmo_move': 'Gizmo: Move',
@@ -240,6 +242,7 @@ DEFAULT_UI_SETTINGS = {
     'show_skeleton_default': True,
     'show_joints_default': True,
     'show_gizmo_default': True,
+    'show_grid_default': True,
 
     'joint_scale': 0.15,
     'joint_color_selected': '#FFCC00',

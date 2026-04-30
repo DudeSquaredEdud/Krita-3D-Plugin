@@ -43,6 +43,10 @@ class UISettingsWidget(QWidget):
         self._show_gizmo.toggled.connect(self._on_setting_changed)
         vis_layout.addWidget(self._show_gizmo)
 
+        self._show_grid = QCheckBox("Show Grid on Load")
+        self._show_grid.toggled.connect(self._on_setting_changed)
+        vis_layout.addWidget(self._show_grid)
+
         layout.addWidget(vis_group)
     
         theme_group = QGroupBox("Theme")
@@ -79,6 +83,7 @@ class UISettingsWidget(QWidget):
         self._show_skeleton.setChecked(self._settings.ui.get('show_skeleton_default', True))
         self._show_joints.setChecked(self._settings.ui.get('show_joints_default', True))
         self._show_gizmo.setChecked(self._settings.ui.get('show_gizmo_default', True))
+        self._show_grid.setChecked(self._settings.ui.get('show_grid_default', True))
 
         theme = self._settings.ui.get('theme', 'dark')
         index = self._theme.findText(theme)
@@ -92,6 +97,7 @@ class UISettingsWidget(QWidget):
         self._settings.ui.set('show_skeleton_default', self._show_skeleton.isChecked())
         self._settings.ui.set('show_joints_default', self._show_joints.isChecked())
         self._settings.ui.set('show_gizmo_default', self._show_gizmo.isChecked())
+        self._settings.ui.set('show_grid_default', self._show_grid.isChecked())
         self._settings.ui.set('theme', self._theme.currentText())
         self._settings.ui.set('joint_scale', self._joint_scale.value())
         self.settings_changed.emit()

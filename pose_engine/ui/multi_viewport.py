@@ -28,6 +28,7 @@ from ..renderer.joint_renderer import JointRenderer
 from ..settings.settings import PluginSettings
 from ..camera import CameraBookmarkManager, Camera
 from ..renderer.bounding_box_renderer import BoundingBoxRenderer
+from ..renderer.grid_renderer import GridRenderer
 from ..logger import get_logger
 
 logger = get_logger(__name__)
@@ -86,6 +87,7 @@ class MultiViewport3D(QOpenGLWidget):
         self._show_skeleton = True
         self._show_joints = True
         self._show_gizmo = True
+        self._show_grid = True
         self._silhouette_mode = False
 
         self._hovered_model_id: Optional[str] = None
@@ -105,6 +107,7 @@ class MultiViewport3D(QOpenGLWidget):
         self._show_bounding_box: bool = False
         self._bounding_box_doc_size: Tuple[int, int] = (0, 0)
         self._bounding_box_renderer: Optional[BoundingBoxRenderer] = None
+        self._grid_renderer: Optional[GridRenderer] = None
 
         self._key_handlers: Dict[str, Callable] = {
             'frame_model': self.frame_all,
@@ -122,6 +125,7 @@ class MultiViewport3D(QOpenGLWidget):
             'toggle_transform_space': self.toggle_gizmo_transform_space,
             'toggle_joints': lambda: self.set_show_joints(not self._show_joints),
             'toggle_gizmo': lambda: self.set_show_gizmo(not self._show_gizmo),
+            'toggle_grid': lambda: self.set_show_grid(not self._show_grid),
 
         }
         # Bookmark handlers (1–9)
@@ -216,7 +220,7 @@ class MultiViewport3D(QOpenGLWidget):
                 self._init_model_gl_resources(model)
                 self.doneCurrent()
             else:
-                logger.debug(f"[DEBUG_ADD] GL not initialized yet, will init later")
+                logger.debug("[DEBUG_ADD] GL not initialized yet, will init later")
 
             self._frame_scene()
 
@@ -344,6 +348,11 @@ class MultiViewport3D(QOpenGLWidget):
         self._show_gizmo = show
         self.update()
 
+    def set_show_grid(self, show: bool) -> None:
+
+        self._show_grid = show
+        self.update()
+
     def set_silhouette_mode(self, enabled: bool) -> None:
 
         self._silhouette_mode = enabled
@@ -460,6 +469,9 @@ class MultiViewport3D(QOpenGLWidget):
         if not self._bounding_box_renderer.initialize():
             logger.debug("Failed to initialize BoundingBoxRenderer")
 
+        self._grid_renderer = GridRenderer()
+        if not self._grid_renderer.initialize():
+            logger.debug("Failed to initialize GridRenderer")
 
         for model in self._scene.get_all_models():
             self._init_model_gl_resources(model)
@@ -539,6 +551,9 @@ class MultiViewport3D(QOpenGLWidget):
         aspect = self.width() / max(1, self.height())
         view = self._camera.get_view_matrix()
         proj = self._camera.get_projection_matrix(aspect)
+
+        if self._show_grid and self._grid_renderer:
+            self._grid_renderer.render(view, proj)
 
         for model in self._scene.get_all_models():
 
@@ -1390,9 +1405,10 @@ class MultiViewport3D(QOpenGLWidget):
             axis_rotation=axis_rotation
         )
 
-        if self._rotation_slow_factor != 1.0:
-            axis_vec = RotationGizmo._get_axis_dir(self._gizmo_drag_axis, axis_rotation) if axis_rotation is not None else (Vec3(1, 0, 0) if self._gizmo_drag_axis == 'X' else (Vec3(0, 1, 0) if self._gizmo_drag_axis == 'Y' else Vec3(0, 0, 1)))
-            import math
+        if (self._rotation_slow_factor - 1.0) > 0.01:
+            # TODO: remove if unnessicairy
+            # axis_vec = RotationGizmo._get_axis_dir(self._gizmo_drag_axis, axis_rotation) if axis_rotation is not None else (Vec3(1, 0, 0) if self._gizmo_drag_axis == 'X' else (Vec3(0, 1, 0) if self._gizmo_drag_axis == 'Y' else Vec3(0, 0, 1)))
+            # import math
             axis_angle = delta_rotation.to_axis_angle()
             axis_dir = axis_angle[0]
             angle_rad = axis_angle[1]
