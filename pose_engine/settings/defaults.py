@@ -255,7 +255,9 @@ DEFAULT_UI_SETTINGS = {
 
     'silhouette_mode': False,
     'silhouette_color': '#595959',
-    'outline_width': 0.005,
+    'silhouette_outline_color': '#141414',
+    'rim_intensity': 0.6,
+    'outline_width': 0.0001,
 
     'theme': 'dark',
     'accent_color': '#3498DB',

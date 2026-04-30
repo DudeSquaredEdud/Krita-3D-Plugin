@@ -345,8 +345,20 @@ class UISettings:
     def set_silhouette_color(self, color: str) -> None:
         self.set('silhouette_color', color)
 
+    def get_silhouette_outline_color(self) -> str:
+        return self._settings.get('silhouette_outline_color', '#141414')
+
+    def set_silhouette_outline_color(self, color: str) -> None:
+        self.set('silhouette_outline_color', color)
+
+    def get_rim_intensity(self) -> float:
+        return self._settings.get('rim_intensity', 0.6)
+
+    def set_rim_intensity(self, intensity: float) -> None:
+        self.set('rim_intensity', intensity)
+
     def get_outline_width(self) -> float:
-        return self._settings.get('outline_width', 0.005)
+        return self._settings.get('outline_width', 0.0001)
 
     def set_outline_width(self, width: float) -> None:
         self.set('outline_width', width)

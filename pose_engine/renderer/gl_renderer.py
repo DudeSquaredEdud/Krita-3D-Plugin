@@ -27,11 +27,13 @@ layout(location = 4) in vec2 a_texcoord;
 out vec3 v_normal;
 out vec3 v_position;
 out vec2 v_texcoord;
+out vec3 v_view_dir;
 
 uniform mat4 u_model;
 uniform mat4 u_view;
 uniform mat4 u_projection;
 uniform vec4 u_bone_dqs[512]; // 256 bones * 2 vec4s per bone (must match MAX_BONES)
+uniform vec3 u_camera_position;
 uniform bool u_outline_pass;
 uniform float u_outline_width;
 
@@ -120,7 +122,8 @@ void main() {
     v_normal = normalize(mat3(u_model) * skinned_normal);
     v_position = vec3(u_model * vec4(skinned_pos, 1.0));
     v_texcoord = a_texcoord;
-
+    v_view_dir = u_camera_position - v_position;
+    
     gl_Position = u_projection * u_view * u_model * vec4(skinned_pos, 1.0);
 }
 """
@@ -157,19 +160,42 @@ uniform float u_alpha_cutoff;
 // Silhouette mode uniforms
 uniform bool u_silhouette_mode;
 uniform vec3 u_silhouette_color;
+uniform vec3 u_silhouette_outline_color;
+uniform float u_rim_intensity;
 uniform bool u_outline_pass;
+
+in vec3 v_view_dir;
 
 void main() {
     if (u_outline_pass) {
-        frag_color = vec4(0.08, 0.08, 0.08, 1.0);
+        frag_color = vec4(u_silhouette_outline_color, 1.0);
         return;
     }
 
     if (u_silhouette_mode) {
         vec3 normal = normalize(v_normal);
-        float ndotl = max(dot(normal, normalize(u_light_dir)), 0.0);
-        float lighting = 0.35 + 0.65 * ndotl;
-        frag_color = vec4(u_silhouette_color * lighting, 1.0);
+        vec3 light_dir = normalize(u_light_dir);
+        vec3 view_dir = normalize(v_view_dir);
+
+        vec3 base_color = u_silhouette_color;
+        if (u_has_texture) {
+            vec4 tex_color = texture(u_base_color_texture, v_texcoord);
+            base_color = tex_color.rgb * u_silhouette_color * 2.0;
+        }
+
+        float ndotl = max(dot(normal, light_dir), 0.0);
+
+        float cel = floor(ndotl * 3.0) / 3.0;
+        float lighting = 0.25 + 0.75 * cel;
+
+        float rim = 1.0 - max(dot(normal, view_dir), 0.0);
+        rim = smoothstep(0.4, 1.0, rim);
+        rim *= u_rim_intensity;
+
+        vec3 rim_color = base_color * 1.8;
+        vec3 result = base_color * lighting + rim_color * rim;
+
+        frag_color = vec4(result, 1.0);
         return;
     }
 
@@ -284,7 +310,9 @@ class GLRenderer:
 
         self._silhouette_mode: bool = False
         self._silhouette_color: Tuple[float, float, float] = (0.35, 0.35, 0.35)
-        self._outline_width: float = 0.005
+        self._silhouette_outline_color: Tuple[float, float, float] = (0.08, 0.08, 0.08)
+        self._rim_intensity: float = 0.6
+        self._outline_width: float = 0.0001
 
         self._u_model: int = -1
         self._u_view: int = -1
@@ -307,6 +335,8 @@ class GLRenderer:
         self._u_alpha_cutoff: int = -1
         self._u_silhouette_mode: int = -1
         self._u_silhouette_color: int = -1
+        self._u_silhouette_outline_color: int = -1
+        self._u_rim_intensity: int = -1
         self._u_outline_pass: int = -1
         self._u_outline_width: int = -1
 
@@ -341,6 +371,8 @@ class GLRenderer:
             self._u_alpha_cutoff = glGetUniformLocation(self._program, 'u_alpha_cutoff')
             self._u_silhouette_mode = glGetUniformLocation(self._program, 'u_silhouette_mode')
             self._u_silhouette_color = glGetUniformLocation(self._program, 'u_silhouette_color')
+            self._u_silhouette_outline_color = glGetUniformLocation(self._program, 'u_silhouette_outline_color')
+            self._u_rim_intensity = glGetUniformLocation(self._program, 'u_rim_intensity')
             self._u_outline_pass = glGetUniformLocation(self._program, 'u_outline_pass')
             self._u_outline_width = glGetUniformLocation(self._program, 'u_outline_width')
     
@@ -640,14 +672,15 @@ class GLRenderer:
             logger.debug(f"[DEBUG_RENDER] NO buffers to render! sub_mesh_buffers=[] mesh_buffers=None")
 
     def _set_distance_gradient_uniforms(self, camera_position: Optional[Vec3]) -> None:
+        if camera_position is not None:
+            glUniform3f(self._u_camera_position, camera_position.x, camera_position.y, camera_position.z)
         if self._distance_gradient_enabled and camera_position is not None:
             glUniform1i(self._u_distance_gradient_enabled, 1)
-            glUniform3f(self._u_camera_position, camera_position.x, camera_position.y, camera_position.z)
             glUniform1f(self._u_distance_near, self._distance_near)
             glUniform1f(self._u_distance_far, self._distance_far)
             glUniform3f(self._u_gradient_color_near, *self._gradient_color_near)
             glUniform3f(self._u_gradient_color_far, *self._gradient_color_far)
-            glUniform1f(self._u_alpha_mode, 0.0)  # Default to OPAQUE
+            glUniform1f(self._u_alpha_mode, 0.0) # Default to OPAQUE
             glUniform1f(self._u_alpha_cutoff, 0.5)
         else:
             glUniform1i(self._u_distance_gradient_enabled, 0)
@@ -655,6 +688,8 @@ class GLRenderer:
     def _set_silhouette_uniforms(self) -> None:
         glUniform1i(self._u_silhouette_mode, 1 if self._silhouette_mode else 0)
         glUniform3f(self._u_silhouette_color, *self._silhouette_color)
+        glUniform3f(self._u_silhouette_outline_color, *self._silhouette_outline_color)
+        glUniform1f(self._u_rim_intensity, self._rim_intensity)
         glUniform1i(self._u_outline_pass, 0)
         glUniform1f(self._u_outline_width, self._outline_width)
 
@@ -701,6 +736,14 @@ class GLRenderer:
         glEnable(GL_CULL_FACE)
         glDisable(GL_BLEND)
 
+        if buffers.texture_id is not None and buffers.has_texcoords:
+            glActiveTexture(GL_TEXTURE0)
+            glBindTexture(GL_TEXTURE_2D, buffers.texture_id)
+            glUniform1i(self._u_has_texture, 1)
+            glUniform1i(self._u_base_color_texture, 0)
+        else:
+            glUniform1i(self._u_has_texture, 0)
+
         glCullFace(GL_FRONT)
         glUniform1i(self._u_outline_pass, 1)
         glDepthMask(GL_TRUE)
@@ -721,6 +764,9 @@ class GLRenderer:
         except Exception as e:
             logger.debug(f"[GL_RENDERER] VAO binding failed in silhouette fill pass: {e}")
             self._render_without_vao(buffers)
+
+        if buffers.texture_id is not None:
+            glBindTexture(GL_TEXTURE_2D, 0)
 
         glDisable(GL_CULL_FACE)
 
@@ -806,7 +852,6 @@ class GLRenderer:
 
     def _render_sub_meshes_silhouette(self) -> None:
         glEnable(GL_CULL_FACE)
-        glUniform1i(self._u_has_texture, 0)
         glUniform1f(self._u_diffuse_alpha, 1.0)
         glUniform1f(self._u_alpha_mode, 0.0)
         glUniform1f(self._u_alpha_cutoff, 0.5)
@@ -816,6 +861,13 @@ class GLRenderer:
         glUniform1i(self._u_outline_pass, 1)
         glDepthMask(GL_TRUE)
         for buffers in self._sub_mesh_buffers:
+            if buffers.texture_id is not None and buffers.has_texcoords:
+                glActiveTexture(GL_TEXTURE0)
+                glBindTexture(GL_TEXTURE_2D, buffers.texture_id)
+                glUniform1i(self._u_has_texture, 1)
+                glUniform1i(self._u_base_color_texture, 0)
+            else:
+                glUniform1i(self._u_has_texture, 0)
             try:
                 glBindVertexArray(buffers.vao)
                 glDrawElements(GL_TRIANGLES, buffers.index_count, GL_UNSIGNED_INT, None)
@@ -828,6 +880,13 @@ class GLRenderer:
         glUniform1i(self._u_outline_pass, 0)
         glDepthMask(GL_TRUE)
         for buffers in self._sub_mesh_buffers:
+            if buffers.texture_id is not None and buffers.has_texcoords:
+                glActiveTexture(GL_TEXTURE0)
+                glBindTexture(GL_TEXTURE_2D, buffers.texture_id)
+                glUniform1i(self._u_has_texture, 1)
+                glUniform1i(self._u_base_color_texture, 0)
+            else:
+                glUniform1i(self._u_has_texture, 0)
             try:
                 glBindVertexArray(buffers.vao)
                 glDrawElements(GL_TRIANGLES, buffers.index_count, GL_UNSIGNED_INT, None)
@@ -835,6 +894,8 @@ class GLRenderer:
             except Exception as e:
                 logger.debug(f"[GL_RENDERER] VAO binding failed in silhouette fill pass: {e}")
                 self._render_without_vao(buffers)
+            if buffers.texture_id is not None:
+                glBindTexture(GL_TEXTURE_2D, 0)
 
         glDisable(GL_CULL_FACE)
 
@@ -1086,6 +1147,18 @@ class GLRenderer:
 
     def get_silhouette_color(self) -> Tuple[float, float, float]:
         return self._silhouette_color
+
+    def set_silhouette_outline_color(self, color: Tuple[float, float, float]) -> None:
+        self._silhouette_outline_color = color
+
+    def get_silhouette_outline_color(self) -> Tuple[float, float, float]:
+        return self._silhouette_outline_color
+
+    def set_rim_intensity(self, intensity: float) -> None:
+        self._rim_intensity = max(0.0, min(intensity, 2.0))
+
+    def get_rim_intensity(self) -> float:
+        return self._rim_intensity
 
     def set_outline_width(self, width: float) -> None:
         self._outline_width = max(0.001, width)

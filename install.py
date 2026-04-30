@@ -51,7 +51,7 @@ def check_package_installed(krita_dir, package_name, min_version=None):
 
     return False
 
-def clean_pip_packages(krita_dir, packages_to_keep, log: Optional[logging.Logger] = None):
+def clean_pip_packages(krita_dir, log: Optional[logging.Logger] = None):
 
     package_patterns = [
         "numpy", "numpy-*.dist-info",
@@ -143,7 +143,7 @@ def main():
 
     if args.clean:
         log.info("Cleaning old dependencies...")
-        clean_pip_packages(krita_dir, [], log=log)
+        clean_pip_packages(krita_dir, log=log)
 
     items = ["krita_3d_pose", "pose_engine"]
     files = ["krita_3d_pose.desktop"]

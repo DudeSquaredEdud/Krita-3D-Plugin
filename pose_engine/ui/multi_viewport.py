@@ -188,7 +188,7 @@ class MultiViewport3D(QOpenGLWidget):
         # Display scale changes just need a repaint - no camera update needed
         if category == 'gizmo' and key in ('display_scale', 'joint_display_scale'):
             pass # type: ignore
-        if category == 'ui' and key in ('silhouette_mode', 'silhouette_color', 'outline_width'):
+        if category == 'ui' and key in ('silhouette_mode', 'silhouette_color', 'silhouette_outline_color', 'rim_intensity', 'outline_width'):
             self._apply_silhouette_settings()
         self.update()
 
@@ -368,6 +368,18 @@ class MultiViewport3D(QOpenGLWidget):
 
         for renderer in self._model_renderers.values():
             renderer.set_silhouette_color(color)
+        self.update()
+
+    def set_silhouette_outline_color(self, color: Tuple[float, float, float]) -> None:
+
+        for renderer in self._model_renderers.values():
+            renderer.set_silhouette_outline_color(color)
+        self.update()
+
+    def set_rim_intensity(self, intensity: float) -> None:
+
+        for renderer in self._model_renderers.values():
+            renderer.set_rim_intensity(intensity)
         self.update()
 
     def set_outline_width(self, width: float) -> None:
@@ -1854,13 +1866,20 @@ class MultiViewport3D(QOpenGLWidget):
         ui = self._settings.ui
         self._silhouette_mode = ui.get('silhouette_mode', False)
         silhouette_color_hex = ui.get('silhouette_color', '#595959')
-        outline_width = ui.get('outline_width', 0.005)
+        outline_color_hex = ui.get('silhouette_outline_color', '#141414')
+        rim_intensity = ui.get('rim_intensity', 0.6)
+        outline_width = ui.get('outline_width', 0.0001)
         r = int(silhouette_color_hex[1:3], 16) / 255.0
         g = int(silhouette_color_hex[3:5], 16) / 255.0
         b = int(silhouette_color_hex[5:7], 16) / 255.0
+        or_ = int(outline_color_hex[1:3], 16) / 255.0
+        og = int(outline_color_hex[3:5], 16) / 255.0
+        ob = int(outline_color_hex[5:7], 16) / 255.0
         for renderer in self._model_renderers.values():
             renderer.set_silhouette_mode(self._silhouette_mode)
             renderer.set_silhouette_color((r, g, b))
+            renderer.set_silhouette_outline_color((or_, og, ob))
+            renderer.set_rim_intensity(rim_intensity)
             renderer.set_outline_width(outline_width)
 
     def set_preset_view(self, view: str) -> None:

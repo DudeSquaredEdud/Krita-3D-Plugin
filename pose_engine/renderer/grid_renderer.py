@@ -59,8 +59,8 @@ void main() {
 
 class GridRenderer:
 
-    COLOR_AXIS_X = (0.9, 0.2, 0.2)
-    COLOR_AXIS_Z = (0.2, 0.2, 0.9)
+    COLOR_AXIS_X = (0.2, 0.2, 0.9)
+    COLOR_AXIS_Z = (0.9, 0.2, 0.2)
     COLOR_MAJOR = (0.5, 0.5, 0.5)
     COLOR_MINOR = (0.3, 0.3, 0.3)
 

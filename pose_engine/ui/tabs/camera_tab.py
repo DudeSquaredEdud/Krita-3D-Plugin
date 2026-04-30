@@ -146,20 +146,23 @@ class CameraTab(QWidget):
         self._distance_range_slider.value_changed.connect(self._on_distance_range_changed)
         effects_layout.addWidget(self._distance_range_slider)
     
-        # Silhouette Mode
+        # Silhouette Mode (hidden — shader needs rework before exposing)
         self._silhouette_btn = QPushButton("Silhouette Mode")
         self._silhouette_btn.setCheckable(True)
         self._silhouette_btn.setChecked(False)
         self._silhouette_btn.setToolTip(
-            "Render models as flat grey with dark contour outlines"
+            "Cel-shaded silhouette with rim lighting and contour outline"
         )
         self._silhouette_btn.clicked.connect(
             lambda: self._on_silhouette_toggle(self._silhouette_btn.isChecked())
         )
         effects_layout.addWidget(self._silhouette_btn)
-    
-        silhouette_color_layout = QHBoxLayout()
-        silhouette_color_layout.addWidget(QLabel("Grey:"))
+        self._silhouette_btn.hide()
+
+        self._silhouette_color_row = QWidget()
+        silhouette_color_layout = QHBoxLayout(self._silhouette_color_row)
+        silhouette_color_layout.setContentsMargins(0, 0, 0, 0)
+        silhouette_color_layout.addWidget(QLabel("Fill:"))
         self._silhouette_color_combo = QComboBox()
         self._silhouette_color_combo.addItem("Light", '#A0A0A0')
         self._silhouette_color_combo.addItem("Medium", '#595959')
@@ -169,19 +172,52 @@ class CameraTab(QWidget):
         self._silhouette_color_combo.setCurrentIndex(1)
         self._silhouette_color_combo.currentIndexChanged.connect(self._on_silhouette_color_changed)
         silhouette_color_layout.addWidget(self._silhouette_color_combo)
-        effects_layout.addLayout(silhouette_color_layout)
-    
-        outline_width_layout = QHBoxLayout()
-        outline_width_layout.addWidget(QLabel("Outline:"))
+        effects_layout.addWidget(self._silhouette_color_row)
+        self._silhouette_color_row.hide()
+
+        self._outline_color_row = QWidget()
+        outline_color_layout = QHBoxLayout(self._outline_color_row)
+        outline_color_layout.setContentsMargins(0, 0, 0, 0)
+        outline_color_layout.addWidget(QLabel("Line:"))
+        self._outline_color_combo = QComboBox()
+        self._outline_color_combo.addItem("Black", '#141414')
+        self._outline_color_combo.addItem("Night", '#1A1A2E')
+        self._outline_color_combo.addItem("Ink", '#0A0A14')
+        self._outline_color_combo.setCurrentIndex(0)
+        self._outline_color_combo.currentIndexChanged.connect(self._on_outline_color_changed)
+        outline_color_layout.addWidget(self._outline_color_combo)
+        effects_layout.addWidget(self._outline_color_row)
+        self._outline_color_row.hide()
+
+        self._rim_row = QWidget()
+        rim_layout = QHBoxLayout(self._rim_row)
+        rim_layout.setContentsMargins(0, 0, 0, 0)
+        rim_layout.addWidget(QLabel("Rim:"))
+        self._rim_slider = QDoubleSpinBox()
+        self._rim_slider.setRange(0.0, 2.0)
+        self._rim_slider.setSingleStep(0.1)
+        self._rim_slider.setDecimals(1)
+        self._rim_slider.setValue(0.6)
+        self._rim_slider.setToolTip("Intensity of the Fresnel rim highlight")
+        self._rim_slider.valueChanged.connect(self._on_rim_intensity_changed)
+        rim_layout.addWidget(self._rim_slider)
+        effects_layout.addWidget(self._rim_row)
+        self._rim_row.hide()
+
+        self._outline_width_row = QWidget()
+        outline_width_layout = QHBoxLayout(self._outline_width_row)
+        outline_width_layout.setContentsMargins(0, 0, 0, 0)
+        outline_width_layout.addWidget(QLabel("Width:"))
         self._outline_width_spin = QDoubleSpinBox()
-        self._outline_width_spin.setRange(0.001, 0.05)
-        self._outline_width_spin.setSingleStep(0.001)
-        self._outline_width_spin.setDecimals(3)
-        self._outline_width_spin.setValue(0.005)
+        self._outline_width_spin.setRange(0.0001, 0.05)
+        self._outline_width_spin.setSingleStep(0.0001)
+        self._outline_width_spin.setDecimals(4)
+        self._outline_width_spin.setValue(0.0001)
         self._outline_width_spin.setToolTip("Thickness of the contour outline")
         self._outline_width_spin.valueChanged.connect(self._on_outline_width_changed)
         outline_width_layout.addWidget(self._outline_width_spin)
-        effects_layout.addLayout(outline_width_layout)
+        effects_layout.addWidget(self._outline_width_row)
+        self._outline_width_row.hide()
     
         layout.addWidget(effects_group)
 
@@ -284,7 +320,23 @@ class CameraTab(QWidget):
             b = int(silhouette_color[5:7], 16) / 255.0
             self._viewport.set_silhouette_color((r, g, b))
 
-        outline_width = self._settings.ui.get('outline_width', 0.005)
+        outline_color = self._settings.ui.get('silhouette_outline_color', '#141414')
+        for i in range(self._outline_color_combo.count()):
+            if self._outline_color_combo.itemData(i) == outline_color:
+                self._outline_color_combo.setCurrentIndex(i)
+                break
+        if outline_color and self._viewport:
+            r = int(outline_color[1:3], 16) / 255.0
+            g = int(outline_color[3:5], 16) / 255.0
+            b = int(outline_color[5:7], 16) / 255.0
+            self._viewport.set_silhouette_outline_color((r, g, b))
+
+        rim_intensity = self._settings.ui.get('rim_intensity', 0.6)
+        self._rim_slider.setValue(rim_intensity)
+        if self._viewport:
+            self._viewport.set_rim_intensity(rim_intensity)
+
+        outline_width = self._settings.ui.get('outline_width', 0.0001)
         self._outline_width_spin.setValue(outline_width)
         if self._viewport:
             self._viewport.set_outline_width(outline_width)
@@ -351,6 +403,22 @@ class CameraTab(QWidget):
             self._viewport.set_silhouette_color((r, g, b))
         if self._settings and color_hex:
             self._settings.ui.set('silhouette_color', color_hex)
+
+    def _on_outline_color_changed(self) -> None:
+        color_hex = self._outline_color_combo.currentData()
+        if color_hex and self._viewport:
+            r = int(color_hex[1:3], 16) / 255.0
+            g = int(color_hex[3:5], 16) / 255.0
+            b = int(color_hex[5:7], 16) / 255.0
+            self._viewport.set_silhouette_outline_color((r, g, b))
+        if self._settings and color_hex:
+            self._settings.ui.set('silhouette_outline_color', color_hex)
+
+    def _on_rim_intensity_changed(self, value: float) -> None:
+        if self._viewport:
+            self._viewport.set_rim_intensity(value)
+        if self._settings:
+            self._settings.ui.set('rim_intensity', value)
 
     def _on_outline_width_changed(self, value: float) -> None:
         if self._viewport:

@@ -44,3 +44,4 @@ class Colors:
     # Silhouette mode colors
     SILHOUETTE_GREY = '#595959'
     SILHOUETTE_OUTLINE = '#141414'
+    SILHOUETTE_RIM = '#A0A0A0'
